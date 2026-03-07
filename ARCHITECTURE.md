@@ -1,5 +1,5 @@
 # BriefAI — Architecture Reference Document
-# Version: MVP v1.0 | Last updated: 2026-03-04
+# Version: MVP v1.1 | Last updated: 2026-03-06
 # ⚠️ CE FICHIER EST LA SOURCE DE VÉRITÉ DU PROJET.
 # Donne-le en contexte à Cursor/Claude à chaque session de code.
 
@@ -20,7 +20,7 @@ BriefAI est un assistant shopping e-commerce par IA. Positionnement : "le Notion
 ## 2. Stack Technique
 
 ```
-Frontend + Backend    : Next.js 14+ (App Router, TypeScript)
+Frontend + Backend    : Next.js 16+ (App Router, TypeScript)
 Base de données       : Supabase (PostgreSQL + Auth + RLS)
 Hébergement           : Vercel
 Paiements             : Stripe (Checkout + Webhooks)
@@ -44,10 +44,10 @@ briefai-app/
 ├── app/
 │   ├── (auth)/
 │   │   ├── login/page.tsx              # Page de connexion Google
-│   │   └── callback/page.tsx           # Callback OAuth Supabase
+│   │   └── callback/route.ts           # Route handler OAuth callback
 │   ├── (dashboard)/
-│   │   ├── layout.tsx                  # Layout dashboard (sidebar + main)
-│   │   ├── page.tsx                    # Vue d'ensemble / projets récents
+│   │   ├── layout.tsx                  # Layout dashboard (sidebar + header, auth guard)
+│   │   ├── page.tsx                    # Vue d'ensemble (stats + empty state)
 │   │   ├── projects/
 │   │   │   ├── page.tsx                # Liste des projets
 │   │   │   └── [id]/page.tsx           # Détail projet (clips + comparaisons)
@@ -63,24 +63,27 @@ briefai-app/
 │   │   └── pricing/page.tsx            # Page pricing
 │   ├── api/
 │   │   ├── clips/
-│   │   │   └── route.ts               # POST: recevoir un clip depuis l'extension
+│   │   │   └── route.ts               # GET + POST: clips (auth + quota)
 │   │   ├── compare/
 │   │   │   └── route.ts               # POST: lancer une comparaison IA
 │   │   ├── webhooks/
 │   │   │   └── stripe/route.ts         # Webhooks Stripe
 │   │   └── health/
 │   │       └── route.ts               # Health check
-│   └── layout.tsx                      # Root layout
+│   ├── layout.tsx                      # Root layout (HTML shell, pas d'auth ici)
+│   └── globals.css                     # Tailwind base styles
 ├── components/
 │   ├── ui/                             # Composants UI réutilisables (shadcn/ui)
-│   ├── dashboard/                      # Composants spécifiques au dashboard
+│   ├── dashboard/
+│   │   ├── sidebar.tsx                 # Sidebar navigation (Client Component)
+│   │   └── header.tsx                  # Header avec avatar + déconnexion
 │   ├── comparison/                     # Composants d'affichage des résultats IA
 │   └── marketing/                      # Composants landing page
 ├── lib/
 │   ├── supabase/
-│   │   ├── client.ts                   # Client Supabase (browser)
-│   │   ├── server.ts                   # Client Supabase (server-side)
-│   │   └── types.ts                    # Types auto-générés depuis le schema
+│   │   ├── client.ts                   # Client Supabase (browser, createBrowserClient)
+│   │   ├── server.ts                   # Client Supabase (server, createServerClient)
+│   │   └── middleware.ts               # Middleware Supabase (refresh session + auth guard)
 │   ├── llm/
 │   │   ├── provider.ts                 # Abstraction multi-provider (Anthropic + OpenAI)
 │   │   ├── prompts.ts                  # Prompts système (comparaison + solo)
@@ -89,19 +92,24 @@ briefai-app/
 │   │   ├── client.ts                   # Config Stripe
 │   │   └── webhooks.ts                 # Logique de traitement des webhooks
 │   └── utils/
-│       ├── quota.ts                    # Vérification des quotas utilisateur
+│       ├── quota.ts                    # Vérification des quotas + increment usage
 │       ├── encryption.ts               # Chiffrement/déchiffrement clés API (AES-256)
 │       └── format.ts                   # Helpers de formatage (prix, dates, specs)
+├── middleware.ts                        # ⚠️ RACINE — Next.js middleware (appelle lib/supabase/middleware)
 ├── database/
-│   ├── schema.sql                      # Migration initiale (le fichier qu'on a créé)
-│   └── schema.mermaid                  # Diagramme ERD
+│   ├── briefai_schema.sql              # Migration initiale
+│   └── briefai_schema.mermaid          # Diagramme ERD
 ├── prompts/
 │   └── briefai_prompts.py              # Prompts de référence (source de vérité)
+├── ARCHITECTURE.md                     # CE FICHIER
 ├── public/
 ├── .env.local                          # Variables d'environnement (JAMAIS commité)
-├── .env.example                        # Template des variables requises
 └── package.json
 ```
+
+**⚠️ Point critique :** `app/layout.tsx` (root) ne contient AUCUNE logique d'auth ni de redirection.
+L'auth guard est dans `app/(dashboard)/layout.tsx` + `middleware.ts`. Séparer les deux layouts
+a causé une boucle de redirection infinie quand le root layout contenait la logique dashboard.
 
 ### Repo 2 : `briefai-extension` (Chrome Extension)
 
@@ -112,9 +120,13 @@ briefai-extension/
 │   ├── background/
 │   │   └── service-worker.ts           # Service worker (gère la comm avec le dashboard)
 │   ├── content/
-│   │   ├── extractor.ts                # Logique d'extraction JSON-LD + fallback Markdown
-│   │   ├── jsonld.ts                   # Parser JSON-LD / Schema.org
-│   │   └── markdown.ts                 # Conversion HTML → Markdown (Turndown.js)
+│   │   ├── extractor.ts                # ✅ Orchestrateur 4 niveaux (merge + confidence)
+│   │   ├── extract-jsonld.ts           # ✅ Level 1: JSON-LD schema.org/Product
+│   │   ├── extract-amazon.ts           # ✅ Level 2: Sélecteurs Amazon (multi-locale)
+│   │   ├── extract-microdata.ts        # ✅ Level 3: Microdata itemprop/itemscope
+│   │   ├── extract-generic.ts          # ✅ Level 4: CSS fallback générique
+│   │   ├── types.ts                    # ✅ Interfaces TypeScript (ProductData, etc.)
+│   │   └── utils.ts                    # ✅ Parsers prix/rating/reviews (EU/US, &nbsp;)
 │   ├── popup/
 │   │   ├── popup.html                  # UI du popup (mini, 3 boutons max)
 │   │   ├── popup.ts                    # Logique du popup
@@ -122,8 +134,23 @@ briefai-extension/
 │   └── utils/
 │       ├── api.ts                      # Appels vers briefai.com/api/clips
 │       └── auth.ts                     # Gestion du token auth (cookie Supabase)
-├── vite.config.ts
-└── package.json
+├── tests/
+│   ├── validate-extraction.py          # ✅ Suite de tests Python (10/10 fixtures)
+│   ├── run-extraction-tests.ts         # Suite de tests TypeScript (jsdom)
+│   └── fixtures/                       # ✅ 10 pages HTML de test
+│       ├── amazon_fr_aspirateur.txt    #   Dyson V8 (Level 2, complet)
+│       ├── amazon_fr_livre.txt         #   Zarathoustra (Level 2, layout livre)
+│       ├── amazon_fr_tv.txt            #   Xiaomi TV (Level 2, complet)
+│       ├── amazon_es_telephone.txt     #   Galaxy S26 (Level 2, 0 avis, ES)
+│       ├── boulanger_fr_aspirateur.txt #   Rowenta (Level 1, JSON-LD parfait)
+│       ├── cdiscount_fr_trottinette.txt#   Ausom L2 (Level 1, @type lowercase)
+│       ├── darty_fr_lave_linge.txt     #   Candy (Level 3, Microdata)
+│       ├── decathlon_fr_tente_trekking.txt # MT900 (Level 1, sans rating)
+│       ├── fnac_fr_casque.txt          #   Sony WH-CH720N (Level 4, CSS only)
+│       └── sephora_fr_parfum.txt       #   Tom Ford (Level 3, multi-variantes)
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
 
@@ -150,31 +177,63 @@ briefai-extension/
 
 ## 5. Système d'Extraction (Extension Chrome)
 
-### Stratégie à 3 niveaux (dans cet ordre de priorité)
+### Stratégie à 4 niveaux (cascade avec merge)
+
+L'extraction exécute TOUS les niveaux applicables, puis merge les résultats
+en priorisant les sources les plus fiables. Cela permet de compléter les
+trous (ex: JSON-LD sans rating + Microdata avec rating = on garde les deux).
 
 **Niveau 1 — JSON-LD (prioritaire)**
 ```
 Document → querySelectorAll('script[type="application/ld+json"]')
-         → parse → chercher @type: "Product"
-         → extraire : name, brand, price, rating, review, offers
+         → parse → chercher @type: "Product" (case-insensitive !)
+         → extraire : name, brand, price, rating, reviewCount, offers, description
 ```
-Couverture : Amazon, Cdiscount, FNAC, Darty, la majorité des gros e-commerce (SEO oblige).
+Couverture validée : Boulanger ✅, Cdiscount ✅ (attention: @type lowercase), Decathlon ✅
+Non couvert : Amazon (pas de JSON-LD Product), Fnac (pas de JSON-LD Product)
 
-**Niveau 2 — DOM ciblé pour les avis**
-Les avis sont rarement dans le JSON-LD. Extraction séparée depuis le DOM :
+**Niveau 2 — Sélecteurs Amazon (multi-locale)**
 ```
-Amazon : #cm-cr-dp-review-list .review
-Générique : [itemprop="review"], .customer-review, .review-text
+Détection : isAmazonDomain(hostname) + présence de #productTitle
+Sélecteurs principaux :
+  - Titre       : #productTitle
+  - Prix        : input[name="priceValue"] → .a-offscreen (skip vides) → .a-color-price
+  - Note        : #acrPopover[title]
+  - Avis        : #acrCustomerReviewText (⚠️ contient &nbsp; à parser)
+  - Marque      : #bylineInfo (multi-locale: FR/ES/EN/DE/IT)
+  - Image       : #landingImage[data-old-hires] → [data-old-hires] → #imgTagWrapperId img
+  - Description : #feature-bullets .a-list-item → #bookDescription (livres)
+  - ASIN        : input[name="asin"] → [data-asin]
 ```
-Nettoyage : garder les 20 avis les plus récents/utiles, tronquer à 200 mots chacun.
+Couverture validée : Amazon FR (aspirateur ✅, livre ⚠️ layout différent, TV ✅), Amazon ES ✅
+⚠️ Les livres Amazon n'ont pas #feature-bullets ni #priceValue (utiliser .a-color-price)
+⚠️ Produits récents peuvent n'avoir aucun avis (#acrPopover absent)
 
-**Niveau 3 — Fallback Markdown (Turndown.js)**
-Si pas de JSON-LD ni de sélecteurs connus :
+**Niveau 3 — Microdata (itemprop/itemscope)**
 ```
-Document.body → Turndown.js → Markdown nettoyé
-→ Supprimer : nav, footer, aside, scripts, ads
-→ Garder : main content, product info, reviews
+Détection : [itemtype*="schema.org/Product"] ou [itemtype*="schema.org/IndividualProduct"]
+Sélecteurs : [itemprop="name"], [itemprop="price"], [itemprop="brand"], etc.
+⚠️ Brand : chercher dans le scope Brand → meta[itemprop="name"][content]
+⚠️ Multi-variantes : Sephora a 3 Offers (30ml/50ml/250ml) → prendre la première
 ```
+Couverture validée : Darty ✅, Sephora ⚠️ (multi-variantes, pas de rating)
+
+**Niveau 4 — CSS fallback générique**
+```
+Dernier recours. Sélecteurs communs e-commerce :
+  - Titre  : h1[class*="product-title"], og:title
+  - Prix   : [data-price], og:price:amount
+  - Note   : [class*="rating"][aria-label], patterns "X,X" dans éléments courts
+  - Avis   : pattern "\d+ avis|reviews" dans le body
+  - Image  : og:image
+  - Desc   : og:description, meta[name="description"]
+```
+Couverture validée : Fnac ⚠️ (extraction fragile mais fonctionnelle)
+
+### Bugs connus corrigés
+- `&nbsp;` dans les prix et review counts Amazon → parser avec .replace('&nbsp;', '')
+- `||` vs `??` pour les valeurs falsy (prix=0, rating=0) → utiliser `??` partout
+- @type "product" en minuscule (Cdiscount) → comparaison case-insensitive
 
 ### Données envoyées au backend (POST /api/clips)
 ```typescript
@@ -188,9 +247,11 @@ interface ClipPayload {
   currency: string;
   rating: number | null;
   review_count: number | null;
+  description: string | null;
   raw_jsonld: object | null;
   raw_markdown: string | null;
-  extraction_method: 'jsonld' | 'markdown' | 'hybrid';
+  extraction_method: 'jsonld' | 'amazon' | 'microdata' | 'markdown' | 'hybrid';
+  extraction_confidence: number;       // 0-1
   extracted_specs: Record<string, string>;
   extracted_reviews: Array<{
     text: string;
@@ -249,15 +310,18 @@ Anthropic: pas de JSON mode natif, le prompt suffit
 ### Flux 1 : Clipper un produit
 ```
 [Extension Chrome]
-  → Content script extrait JSON-LD + avis du DOM
+  → Content script exécute extractProduct(document)
+  → Cascade : JSON-LD → Amazon → Microdata → CSS fallback
+  → Merge des résultats, calcul du confidence score
   → Popup affiche "Clip ✓" + choix du projet (optionnel)
-  → POST /api/clips avec le ClipPayload + auth token
+  → POST /api/clips avec le ClipPayload + auth cookie
 [API Route /api/clips]
-  → Validation du payload
-  → Vérification quota (clips_count < limite)
-  → INSERT dans table clips
-  → increment_usage(clips: 1)
-  → Response 201 + clip.id
+  → Auth check via supabase.auth.getUser()
+  → Validation du payload (source_url + product_name requis)
+  → Vérification quota (checkQuota → is_allowed)
+  → INSERT dans table clips (utilise ?? pas || pour les valeurs falsy)
+  → incrementUsage(clips: 1)
+  → Response 201 + clip.id + quota restant
 ```
 
 ### Flux 2 : Lancer une comparaison
@@ -284,12 +348,21 @@ Anthropic: pas de JSON mode natif, le prompt suffit
 
 ### Flux 3 : Inscription + premier usage
 ```
-[Landing page]
-  → Clic "Commencer gratuitement"
-  → Supabase Auth : Google OAuth
-  → Trigger handle_new_user() → crée le profil (plan: 'free')
-  → Redirect vers /dashboard
-  → Onboarding : "Installez l'extension Chrome"
+[Page /login]
+  → Clic "Continuer avec Google"
+  → supabase.auth.signInWithOAuth({ provider: 'google' })
+  → Redirect vers Google → consentement → redirect vers /callback?code=xxx
+[Route /callback]
+  → supabase.auth.exchangeCodeForSession(code)
+  → Redirect vers / (dashboard)
+[Middleware (middleware.ts)]
+  → Chaque requête : refresh session via supabase.auth.getUser()
+  → Routes /login, /callback, /api → pass through (pas de redirect)
+  → Autres routes sans user → redirect vers /login
+  → /login avec user → redirect vers /
+[Dashboard layout]
+  → Double vérification : supabase.auth.getUser() → redirect si pas connecté
+  → Affiche sidebar + header avec avatar Google + nom
 ```
 
 ### Flux 4 : Upgrade vers un plan payant
@@ -320,13 +393,18 @@ Anthropic: pas de JSON mode natif, le prompt suffit
 | **Projets** | 3 | Illimité | Illimité |
 | **Historique** | 30 jours | Illimité | Illimité |
 
-### Logique de quota (côté backend)
+### Logique de quota (côté backend — implémenté dans lib/utils/quota.ts)
 ```typescript
 // Avant chaque action, vérifier :
-const quota = await supabase.rpc('check_quota', { p_user_id: userId });
+const quota = await checkQuota(supabase, user.id, 'clips');
 if (!quota.is_allowed) {
-  return Response.json({ error: 'quota_exceeded', ...quota }, { status: 429 });
+  return NextResponse.json(
+    { error: 'quota_exceeded', code: 'QUOTA_EXCEEDED', ...quota },
+    { status: 429 }
+  );
 }
+// Après l'action :
+await incrementUsage(supabase, user.id, 'clips');
 ```
 
 
@@ -345,8 +423,13 @@ if (!quota.is_allowed) {
 
 ### Auth
 - Supabase Auth avec Google OAuth uniquement (MVP)
-- L'extension Chrome récupère le token via un cookie partagé sur le domaine briefai.com
-- Toutes les API routes vérifient le token Supabase en premier
+- 3 clients Supabase : browser (client.ts), server (server.ts), middleware (middleware.ts)
+- Middleware Next.js (middleware.ts à la racine) refresh la session à chaque requête
+- ⚠️ Le root layout (app/layout.tsx) ne doit JAMAIS contenir de logique d'auth
+- L'auth guard est dans : middleware.ts (redirect) + (dashboard)/layout.tsx (double check)
+- Routes exclues du redirect : /login, /callback, /api/*
+- L'extension Chrome récupérera le token via un cookie partagé sur le domaine briefai.com
+- Toutes les API routes vérifient le token via supabase.auth.getUser()
 
 ### Variables d'environnement requises
 ```env
@@ -389,13 +472,14 @@ NEXT_PUBLIC_APP_URL=https://briefai.com
 
 ## 11. Roadmap des Phases
 
-| Phase | Semaines | Objectif | Livrable |
-|-------|----------|----------|----------|
-| 1. Fondations | 1-2 | Setup complet | Auth + BDD + layout dashboard + déploiement Vercel |
-| 2. Extension Chrome | 3-4 | Clipper fonctionnel | Extension qui extrait JSON-LD + avis → envoie au backend |
-| 3. Cœur IA | 5-7.5 | Comparaison + analyse | Appels LLM, affichage résultats, abstraction BYOK |
-| 4. Monétisation | 7.5-10 | Stripe + crédits | Checkout, webhooks, quotas, page settings BYOK |
-| 5. Polish + Launch | 10-11 | Production ready | Landing page, onboarding, tests, soumission Chrome Web Store |
+| Phase | Semaines | Objectif | Livrable | Statut |
+|-------|----------|----------|----------|--------|
+| 0. Préparation | 0 | Fondations doc | Architecture, schema SQL, prompts, 10 fixtures | ✅ DONE |
+| 1. Fondations | 1-2 | Setup complet | Auth Google + BDD + layout dashboard + API clips | ✅ DONE |
+| 2. Extension Chrome | 3-4 | Clipper fonctionnel | Extracteur 4 niveaux ✅, popup + service worker + packaging | ⏳ EN COURS |
+| 3. Cœur IA | 5-7.5 | Comparaison + analyse | Appels LLM, affichage résultats, abstraction BYOK | ⬜ TODO |
+| 4. Monétisation | 7.5-10 | Stripe + crédits | Checkout, webhooks, quotas, page settings BYOK | ⬜ TODO |
+| 5. Polish + Launch | 10-11 | Production ready | Landing page, onboarding, tests, Chrome Web Store | ⬜ TODO |
 
 
 ## 12. Décisions Techniques Figées
