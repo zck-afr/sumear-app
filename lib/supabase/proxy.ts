@@ -29,18 +29,27 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Don't redirect on auth routes or API routes
   const path = request.nextUrl.pathname
-  if (path.startsWith('/login') || path.startsWith('/callback') || path.startsWith('/api')) {
+
+  // Don't redirect on API routes or callback
+  if (path.startsWith('/api') || path.startsWith('/callback')) {
     return supabaseResponse
   }
 
-  // Redirect unauthenticated users to login
-  if (!user) {
+  // Authenticated user on /login → redirect to dashboard
+  if (user && path.startsWith('/login')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
+
+  // Unauthenticated user on protected route → redirect to login
+  if (!user && !path.startsWith('/login')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
   return supabaseResponse
+
 }
