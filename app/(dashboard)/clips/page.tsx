@@ -15,7 +15,6 @@ interface Clip {
   currency: string
   rating: number | null
   review_count: number | null
-  extraction_method: string
   created_at: string
 }
 
@@ -32,30 +31,24 @@ export default function ClipsPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
       const { data, error } = await supabase
         .from('clips')
-        .select('id, product_name, brand, source_domain, source_url, image_url, price, currency, rating, review_count, extraction_method, created_at')
+        .select('id, product_name, brand, source_domain, source_url, image_url, price, currency, rating, review_count, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100)
-
       if (data) setClips(data)
-      if (error) setError('Erreur lors du chargement des clips.')
+      if (error) setError('Erreur lors du chargement.')
       setLoading(false)
     }
-
     fetchClips()
   }, [])
 
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else if (next.size < 5) {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else if (next.size < 5) next.add(id)
       return next
     })
   }
@@ -64,22 +57,14 @@ export default function ClipsPage() {
     if (selected.size < 2) return
     setComparing(true)
     setError(null)
-
     try {
       const response = await fetch('/api/compare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clip_ids: Array.from(selected) }),
       })
-
       const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || 'Erreur lors de la comparaison.')
-        setComparing(false)
-        return
-      }
-
+      if (!response.ok) { setError(data.error || 'Erreur.'); setComparing(false); return }
       router.push(`/compare/${data.comparison_id}`)
     } catch {
       setError('Impossible de contacter le serveur.')
@@ -89,59 +74,69 @@ export default function ClipsPage() {
 
   if (loading) {
     return (
-      <div className="text-center py-20">
-        <div className="mx-auto w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="w-6 h-6 border-2 border-gray-300 dark:border-[#333] border-t-violet-500 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div>
+    <div className="p-6 lg:p-8 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clips</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Sélectionnez 2 à 5 produits pour les comparer avec l&apos;IA.
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Produits</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-[#888]">
+            Sélectionnez des produits pour discuter ou comparer.
           </p>
         </div>
-
-        {selected.size >= 2 && (
-          <button
-            onClick={handleCompare}
-            disabled={comparing}
-            className="px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors"
-          >
-            {comparing ? 'Analyse en cours...' : `Comparer (${selected.size} produits)`}
-          </button>
-        )}
+        <div className="flex gap-2">
+          {selected.size === 1 && (
+            <button
+              onClick={() => router.push(`/chat?clips=${Array.from(selected).join(',')}`)}
+              className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-violet-500 rounded-lg hover:from-violet-500 hover:to-violet-400 transition-all"
+            >
+              💬 Discuter
+            </button>
+          )}
+          {selected.size >= 2 && (
+            <>
+              <button
+                onClick={() => router.push(`/chat?clips=${Array.from(selected).join(',')}`)}
+                className="px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white bg-gray-200 dark:bg-[#2e2e33] border border-gray-300 dark:border-[#3a3a40] rounded-lg hover:bg-gray-300 dark:hover:bg-[#3a3a40] transition-colors"
+              >
+                💬 Discuter
+              </button>
+              <button
+                onClick={handleCompare}
+                disabled={comparing}
+                className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-violet-500 rounded-lg hover:from-violet-500 hover:to-violet-400 disabled:opacity-50 transition-all"
+              >
+                {comparing ? 'Analyse...' : `Comparer (${selected.size})`}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {error && (
-        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <div className="mt-4 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
           {error}
         </div>
       )}
 
-      {selected.size === 1 && (
-        <div className="mt-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
-          Sélectionnez au moins 1 autre produit pour comparer.
-        </div>
-      )}
-
       {clips.length === 0 ? (
-        <div className="mt-8 text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
-          <h3 className="text-sm font-semibold text-gray-900">Aucun clip</h3>
-          <p className="mt-1 text-sm text-gray-500">Utilisez l&apos;extension pour clipper des produits.</p>
+        <div className="mt-8 text-center py-12 border-2 border-dashed border-gray-300 dark:border-[#3a3a40] rounded-xl bg-[#F5F0E8] dark:bg-transparent shadow-sm dark:shadow-none">
+          <p className="text-sm text-gray-500 dark:text-[#555]">Aucun produit. Utilisez l&apos;extension pour clipper.</p>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {clips.map((clip) => (
-            <ClipCard
+            <ProductCard
               key={clip.id}
               clip={clip}
               isSelected={selected.has(clip.id)}
               onToggle={() => toggleSelect(clip.id)}
-              selectionDisabled={selected.size >= 5 && !selected.has(clip.id)}
+              disabled={selected.size >= 5 && !selected.has(clip.id)}
             />
           ))}
         </div>
@@ -150,45 +145,34 @@ export default function ClipsPage() {
   )
 }
 
-function ClipCard({ clip, isSelected, onToggle, selectionDisabled }: {
-  clip: Clip
-  isSelected: boolean
-  onToggle: () => void
-  selectionDisabled: boolean
+function ProductCard({ clip, isSelected, onToggle, disabled }: {
+  clip: Clip; isSelected: boolean; onToggle: () => void; disabled: boolean
 }) {
-  const formattedPrice = clip.price != null
+  const price = clip.price != null
     ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: clip.currency || 'EUR' }).format(clip.price)
     : null
-
-  const formattedDate = new Date(clip.created_at).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-  })
-
   const stars = clip.rating != null
     ? '★'.repeat(Math.round(clip.rating)) + '☆'.repeat(5 - Math.round(clip.rating))
     : null
 
   return (
     <div
-      onClick={() => !selectionDisabled && onToggle()}
-      className={`relative rounded-lg border bg-white overflow-hidden transition-all cursor-pointer ${
+      onClick={() => !disabled && onToggle()}
+      className={`relative rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 overflow-hidden cursor-pointer transition-all shadow-sm dark:shadow-none ${
         isSelected
-          ? 'border-gray-900 ring-2 ring-gray-900/10 shadow-md'
-          : selectionDisabled
-          ? 'border-gray-100 opacity-50 cursor-not-allowed'
-          : 'border-gray-200 hover:shadow-md'
+          ? 'border-violet-500 ring-2 ring-violet-500/30'
+          : disabled
+          ? 'border-gray-300 dark:border-[#3a3a40] opacity-40 cursor-not-allowed'
+          : 'border-gray-300 dark:border-[#3a3a40] hover:border-gray-400 dark:hover:border-[#4a4a52]'
       }`}
     >
       {/* Checkbox */}
       <div className="absolute top-3 right-3 z-10">
         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-          isSelected
-            ? 'bg-gray-900 border-gray-900 text-white'
-            : 'bg-white border-gray-300'
+          isSelected ? 'bg-violet-500 border-violet-500' : 'bg-white dark:bg-transparent border-gray-400 dark:border-[#444]'
         }`}>
           {isSelected && (
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           )}
@@ -196,43 +180,25 @@ function ClipCard({ clip, isSelected, onToggle, selectionDisabled }: {
       </div>
 
       {/* Image */}
-      <div className="h-40 bg-gray-50 flex items-center justify-center">
+      <div className="h-36 bg-gray-100 dark:bg-[#111] flex items-center justify-center">
         {clip.image_url ? (
-          <img
-            src={clip.image_url}
-            alt={clip.product_name}
-            className="h-full w-full object-contain p-3"
-            referrerPolicy="no-referrer"
-          />
+          <img src={clip.image_url} alt="" className="h-full w-full object-contain p-4" referrerPolicy="no-referrer" />
         ) : (
-          <div className="text-gray-300 text-4xl">📦</div>
+          <span className="text-gray-400 dark:text-[#333] text-3xl">📦</span>
         )}
       </div>
 
       {/* Info */}
       <div className="p-4">
-        <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
-          {clip.product_name}
-        </p>
-
-        {clip.brand && (
-          <p className="mt-1 text-xs text-gray-500">{clip.brand}</p>
-        )}
-
+        <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 leading-tight">{clip.product_name}</p>
+        {clip.brand && <p className="mt-1 text-xs text-gray-600 dark:text-[#666]">{clip.brand}</p>}
         <div className="mt-2 flex items-center justify-between">
-          {formattedPrice && (
-            <span className="text-base font-bold text-emerald-600">{formattedPrice}</span>
-          )}
-          {stars && (
-            <span className="text-xs text-amber-500" title={`${clip.rating}/5 (${clip.review_count ?? 0} avis)`}>
-              {stars} {clip.rating}
-            </span>
-          )}
+          {price && <span className="text-base font-bold text-gray-900 dark:text-white">{price}</span>}
+          {stars && <span className="text-xs text-amber-500 dark:text-amber-400">{stars}</span>}
         </div>
-
-        <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
+        <div className="mt-2 flex items-center justify-between text-[10px] text-gray-500 dark:text-[#555]">
           <span>{clip.source_domain}</span>
-          <span>{formattedDate}</span>
+          <span>{new Date(clip.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
         </div>
       </div>
     </div>

@@ -1,111 +1,107 @@
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import { RecentClipsGrid } from '@/components/dashboard/recent-clips-grid'
 
-export default async function DashboardPage() {
+export default async function DashboardHome() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'
 
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'là'
+  // Fetch stats
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-  // Get real counts
   const { count: clipsCount } = await supabase
     .from('clips')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user!.id)
 
-  const { count: projectsCount } = await supabase
-    .from('projects')
+  const { count: comparisonsCount } = await supabase
+    .from('comparisons')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user!.id)
+    .gte('created_at', monthStart)
 
-  const now = new Date()
-  const { data: usage } = await supabase
-    .from('usage')
-    .select('clips_count, comparisons_count')
-    .eq('user_id', user!.id)
-    .eq('year', now.getFullYear())
-    .eq('month', now.getMonth() + 1)
-    .single()
-
-  const monthlyClips = usage?.clips_count ?? 0
-  const monthlyComparisons = usage?.comparisons_count ?? 0
-
-  // Get recent clips for preview
+  // Fetch recent clips
   const { data: recentClips } = await supabase
     .from('clips')
-    .select('id, product_name, brand, source_domain, image_url, price, currency, created_at')
+    .select('id, product_name, brand, price, currency, image_url, source_domain, created_at')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
     .limit(6)
 
+  const analysesLimit = 5 // Free plan
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900">
-        Bonjour {firstName} 👋
+    <div className="p-6 lg:p-8 max-w-5xl">
+      {/* Greeting — plus bas */}
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-16">
+        Hey {firstName} <span className="opacity-60">:)</span>
       </h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Bienvenue sur BriefAI. Clipez des produits avec l&apos;extension Chrome, puis comparez-les ici.
-      </p>
 
       {/* Stats */}
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard title="Clips ce mois" value={String(monthlyClips)} subtitle="sur 20 (Free)" />
-        <StatCard title="Analyses ce mois" value={String(monthlyComparisons)} subtitle="sur 5 (Free)" />
-        <StatCard title="Projets" value={String(projectsCount ?? 0)} subtitle="sur 3 (Free)" />
-      </div>
-
-      {/* Recent clips or empty state */}
-      {(!recentClips || recentClips.length === 0) ? (
-        <div className="mt-12 text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
-          <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
-          </svg>
-          <h3 className="mt-4 text-sm font-semibold text-gray-900">Aucun clip</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Installez l&apos;extension Chrome pour commencer à clipper des produits.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900">Clips récents</h2>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {recentClips.map((clip) => (
-              <div key={clip.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
-                {clip.image_url ? (
-                  <img
-                    src={clip.image_url}
-                    alt=""
-                    className="h-12 w-12 rounded object-contain bg-gray-50"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="h-12 w-12 rounded bg-gray-100 flex items-center justify-center text-gray-300">📦</div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 truncate">{clip.product_name}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <span>{clip.source_domain}</span>
-                    {clip.price != null && (
-                      <span className="font-semibold text-emerald-600">
-                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: clip.currency || 'EUR' }).format(clip.price)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+      <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Products absorbed */}
+        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 border-gray-300 dark:border-[#3a3a40] shadow-sm dark:shadow-none p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 dark:text-[#888] font-medium">Produits absorbés</span>
+            <svg className="w-4 h-4 text-gray-400 dark:text-[#555]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+            </svg>
+          </div>
+          <p className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{clipsCount ?? 0}</p>
+          <div className="mt-3 h-[2px] bg-gray-200 dark:bg-[#27272A] rounded-full overflow-hidden">
+            <div className="h-full bg-violet-500 rounded-full" style={{ width: `${Math.min((clipsCount ?? 0) * 5, 100)}%` }} />
           </div>
         </div>
-      )}
-    </div>
-  )
-}
 
-function StatCard({ title, value, subtitle }: { title: string; value: string; subtitle: string }) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-      <p className="mt-1 text-xs text-gray-400">{subtitle}</p>
+        {/* Analyses remaining */}
+        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 border-gray-300 dark:border-[#3a3a40] shadow-sm dark:shadow-none p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 dark:text-[#888] font-medium">Analyses restantes</span>
+            <svg className="w-4 h-4 text-gray-400 dark:text-[#555]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+            </svg>
+          </div>
+          <p className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+            {Math.max(analysesLimit - (comparisonsCount ?? 0), 0)}<span className="text-lg text-gray-500 dark:text-[#555]">/{analysesLimit}</span>
+          </p>
+          <div className="mt-3 h-[2px] bg-gray-200 dark:bg-[#27272A] rounded-full overflow-hidden">
+            <div className="h-full bg-violet-500 rounded-full" style={{ width: `${((comparisonsCount ?? 0) / analysesLimit) * 100}%` }} />
+          </div>
+        </div>
+
+        {/* Money saved */}
+        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 border-gray-300 dark:border-[#3a3a40] shadow-sm dark:shadow-none p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 dark:text-[#888] font-medium">Argent économisé</span>
+            <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+            </svg>
+          </div>
+          <p className="mt-3 text-3xl font-bold text-emerald-600 dark:text-emerald-400">—</p>
+          <p className="mt-2 text-xs text-gray-500 dark:text-[#555]">Disponible après votre 1ère comparaison</p>
+        </div>
+      </div>
+
+      {/* Recent products */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Produits récents</h2>
+          <Link href="/clips" className="text-xs text-violet-500 hover:text-violet-600 dark:text-violet-400 dark:hover:text-violet-300 transition-colors">
+            Voir plus
+          </Link>
+        </div>
+
+        {(!recentClips || recentClips.length === 0) ? (
+          <div className="mt-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-[#3a3a40] bg-[#F5F0E8] dark:bg-transparent shadow-sm dark:shadow-none p-8 text-center">
+            <p className="text-sm text-gray-500 dark:text-[#555]">Aucun produit encore. Utilisez l&apos;extension Chrome pour clipper des produits.</p>
+          </div>
+        ) : (
+          <RecentClipsGrid clips={recentClips} />
+        )}
+      </div>
+
     </div>
   )
 }
