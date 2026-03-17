@@ -6,7 +6,7 @@ export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
 
   return (
-    <div className="fixed bottom-5 right-5 z-20 flex items-center gap-1 rounded-xl border border-gray-200 dark:border-[#3a3a40] bg-[#F5F0E8] dark:bg-[#25252a] p-1 shadow-lg">
+    <div className="fixed bottom-5 right-5 z-20 flex items-center gap-1 rounded-xl border border-gray-200 dark:border-[#393E46] bg-[#F5F0E8] dark:bg-[#393E46] p-1 shadow-lg">
       <button
         type="button"
         onClick={() => setTheme('light')}
@@ -14,7 +14,7 @@ export function ThemeToggle() {
         className={`rounded-lg p-2 transition-colors ${
           theme === 'light'
             ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400'
-            : 'text-gray-500 dark:text-[#888] hover:bg-gray-100 dark:hover:bg-[#3a3a40]'
+            : 'text-gray-500 dark:text-[#888] hover:bg-gray-100 dark:hover:bg-[#434850]'
         }`}
         aria-label="Mode clair"
       >
@@ -29,7 +29,7 @@ export function ThemeToggle() {
         className={`rounded-lg p-2 transition-colors ${
           theme === 'dark'
             ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400'
-            : 'text-gray-500 dark:text-[#888] hover:bg-gray-100 dark:hover:bg-[#3a3a40]'
+            : 'text-gray-500 dark:text-[#888] hover:bg-gray-100 dark:hover:bg-[#434850]'
         }`}
         aria-label="Mode sombre"
       >

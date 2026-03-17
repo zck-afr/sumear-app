@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createClientWithJWT } from '@/lib/supabase/server'
+import type { User } from '@supabase/supabase-js'
 import { callLLM, type PlanType } from '@/lib/llm/provider'
 import { buildComparisonPrompt } from '@/lib/llm/prompts'
 
@@ -11,7 +12,7 @@ RULES:
 - Be concise and direct. No fluff.
 - If you don't have enough data to answer, say so.
 - Be honest about limitations and unknowns.
-- Respond in the same language as the user's question.
+- Respond in French by default (BriefAI is in French). If the user clearly asks in another language, respond in that language.
 - Don't repeat the full comparison — the user already has the verdict. Focus on their specific question.`
 
 /**
@@ -22,11 +23,23 @@ RULES:
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    let supabase = await createClient()
+    let user: User | null = (await supabase.auth.getUser()).data.user
 
-    // ── Auth ──
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    if (!user) {
+      const authHeader = request.headers.get('Authorization')
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+      if (token) {
+        const jwtClient = createClientWithJWT(token)
+        const { data: { user: u } } = await jwtClient.auth.getUser(token)
+        if (u) {
+          user = u
+          supabase = jwtClient
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }

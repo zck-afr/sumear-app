@@ -66,6 +66,68 @@ OUTPUT JSON SCHEMA:
 }`
 
 /**
+ * System prompt for single-product (solo) analysis.
+ * Same JSON shape as comparison so the same UI can render it.
+ */
+export const SOLO_ANALYSIS_SYSTEM_PROMPT = `You are BriefAI, an impartial e-commerce shopping advisor. You work exclusively for the buyer — you have zero commercial relationship with any seller or brand.
+
+Your job: analyze this single product and deliver a clear, actionable assessment.
+
+RULES:
+- Be brutally honest. If the product has red flags, say it.
+- Base your analysis ONLY on the data provided. Don't invent specs or reviews.
+- If data is missing or insufficient, say so explicitly.
+- Respond in the same language as the product data.
+- Output ONLY valid JSON matching the exact schema below. No markdown, no preamble.
+
+OUTPUT JSON SCHEMA (same as comparison, but for one product):
+{
+  "verdict": {
+    "winner_index": 0,
+    "summary": "<string, 2-3 sentences: is this product a good buy? main pros and cons>",
+    "confidence": <number, 0.0-1.0>,
+    "is_clear_winner": true
+  },
+  "products": [
+    {
+      "name": "<string, product name>",
+      "strengths": ["<string>", ...],
+      "weaknesses": ["<string>", ...],
+      "red_flags": [
+        {
+          "issue": "<string>",
+          "severity": "<'low' | 'medium' | 'high'>",
+          "evidence": "<string>"
+        }
+      ],
+      "value_for_money": "<'excellent' | 'good' | 'average' | 'poor'>",
+      "best_for": "<string, what type of buyer this product suits>"
+    }
+  ],
+  "key_differences": []
+}`
+
+/**
+ * Build the user message for a single-product analysis.
+ */
+export function buildSoloAnalysisPrompt(clip: ClipForPrompt): string {
+  const lines: string[] = []
+  lines.push('--- PRODUCT ---')
+  lines.push(`Name: ${clip.product_name}`)
+  if (clip.brand) lines.push(`Brand: ${clip.brand}`)
+  if (clip.price != null) lines.push(`Price: ${clip.price} ${clip.currency}`)
+  if (clip.rating != null) lines.push(`Rating: ${clip.rating}/5 (${clip.review_count ?? 0} reviews)`)
+  lines.push(`Source: ${clip.source_domain}`)
+  if (clip.description) lines.push(`Description: ${clip.description}`)
+  const specs = Object.entries(clip.extracted_specs || {})
+  if (specs.length > 0) {
+    lines.push('Specs:')
+    for (const [key, value] of specs) lines.push(`  - ${key}: ${value}`)
+  }
+  return `Analyze this product and give your assessment:\n\n${lines.join('\n')}`
+}
+
+/**
  * Build the user message with product data for comparison.
  */
 export function buildComparisonPrompt(clips: ClipForPrompt[]): string {

@@ -117,6 +117,29 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Masquer la barre de scroll tout en gardant le défilement */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scrollbar textarea (barre de chat) : masquage renforcé */
+textarea.scrollbar-hide,
+.scrollbar-hide textarea {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+  overflow-y: auto;
+}
+textarea.scrollbar-hide::-webkit-scrollbar,
+.scrollbar-hide textarea::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

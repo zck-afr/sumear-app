@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkQuota, incrementUsage } from '@/lib/utils/quota'
 import { callLLM, estimateCost, type PlanType } from '@/lib/llm/provider'
-import { COMPARISON_SYSTEM_PROMPT, buildComparisonPrompt, parseComparisonResponse } from '@/lib/llm/prompts'
+import { COMPARISON_SYSTEM_PROMPT, SOLO_ANALYSIS_SYSTEM_PROMPT, buildComparisonPrompt, buildSoloAnalysisPrompt, parseComparisonResponse } from '@/lib/llm/prompts'
 
 /**
  * POST /api/compare
- * Launches an AI comparison between 2-5 clips.
+ * Launches an AI comparison between 1-5 clips.
+ * 1 clip = solo analysis; 2-5 = comparison.
  *
  * Body: { clip_ids: string[], project_id?: string }
  */
@@ -35,9 +36,9 @@ export async function POST(request: Request) {
     }
 
     // ── Validate ──
-    if (!body.clip_ids || !Array.isArray(body.clip_ids) || body.clip_ids.length < 2) {
+    if (!body.clip_ids || !Array.isArray(body.clip_ids) || body.clip_ids.length < 1) {
       return NextResponse.json(
-        { error: 'At least 2 clip_ids are required', code: 'MISSING_FIELDS' },
+        { error: 'At least 1 clip_id is required', code: 'MISSING_FIELDS' },
         { status: 400 }
       )
     }
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
       .in('id', body.clip_ids)
       .eq('user_id', user.id)
 
-    if (clipsError || !clips || clips.length < 2) {
+    if (clipsError || !clips || clips.length < 1) {
       return NextResponse.json(
         { error: 'Could not fetch clips. Make sure they exist and belong to you.', code: 'CLIPS_NOT_FOUND' },
         { status: 404 }
@@ -113,11 +114,13 @@ export async function POST(request: Request) {
 
     // ── Call LLM ──
     const plan = (quota.plan || 'free') as PlanType
-    const userMessage = buildComparisonPrompt(clips)
+    const isSolo = clips.length === 1
+    const systemPrompt = isSolo ? SOLO_ANALYSIS_SYSTEM_PROMPT : COMPARISON_SYSTEM_PROMPT
+    const userMessage = isSolo ? buildSoloAnalysisPrompt(clips[0]) : buildComparisonPrompt(clips)
 
     let llmResponse
     try {
-      llmResponse = await callLLM(plan, COMPARISON_SYSTEM_PROMPT, userMessage)
+      llmResponse = await callLLM(plan, systemPrompt, userMessage)
     } catch (err: any) {
       // LLM call failed — update status to failed
       await supabase

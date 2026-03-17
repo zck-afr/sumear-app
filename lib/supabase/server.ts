@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 export async function createClient() {
@@ -22,6 +23,19 @@ export async function createClient() {
             // This can be ignored if middleware refreshes the session.
           }
         },
+      },
+    }
+  )
+}
+
+/** Server-side client using a JWT (e.g. from Authorization header). Use when cookies are not sent (e.g. iframe). */
+export function createClientWithJWT(jwt: string) {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: { Authorization: `Bearer ${jwt}` },
       },
     }
   )

@@ -42,7 +42,7 @@ export default async function DashboardHome() {
       {/* Stats */}
       <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Products absorbed */}
-        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 border-gray-300 dark:border-[#3a3a40] shadow-sm dark:shadow-none p-5">
+        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#393E46] border-2 border-gray-300 dark:border-[#393E46] shadow-sm dark:shadow-none p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 dark:text-[#888] font-medium">Produits absorbés</span>
             <svg className="w-4 h-4 text-gray-400 dark:text-[#555]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -50,13 +50,13 @@ export default async function DashboardHome() {
             </svg>
           </div>
           <p className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{clipsCount ?? 0}</p>
-          <div className="mt-3 h-[2px] bg-gray-200 dark:bg-[#27272A] rounded-full overflow-hidden">
+          <div className="mt-3 h-[2px] bg-gray-200 dark:bg-[#393E46] rounded-full overflow-hidden">
             <div className="h-full bg-violet-500 rounded-full" style={{ width: `${Math.min((clipsCount ?? 0) * 5, 100)}%` }} />
           </div>
         </div>
 
         {/* Analyses remaining */}
-        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 border-gray-300 dark:border-[#3a3a40] shadow-sm dark:shadow-none p-5">
+        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#393E46] border-2 border-gray-300 dark:border-[#393E46] shadow-sm dark:shadow-none p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 dark:text-[#888] font-medium">Analyses restantes</span>
             <svg className="w-4 h-4 text-gray-400 dark:text-[#555]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -66,13 +66,13 @@ export default async function DashboardHome() {
           <p className="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
             {Math.max(analysesLimit - (comparisonsCount ?? 0), 0)}<span className="text-lg text-gray-500 dark:text-[#555]">/{analysesLimit}</span>
           </p>
-          <div className="mt-3 h-[2px] bg-gray-200 dark:bg-[#27272A] rounded-full overflow-hidden">
+          <div className="mt-3 h-[2px] bg-gray-200 dark:bg-[#393E46] rounded-full overflow-hidden">
             <div className="h-full bg-violet-500 rounded-full" style={{ width: `${((comparisonsCount ?? 0) / analysesLimit) * 100}%` }} />
           </div>
         </div>
 
         {/* Money saved */}
-        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 border-gray-300 dark:border-[#3a3a40] shadow-sm dark:shadow-none p-5">
+        <div className="rounded-xl bg-[#F5F0E8] dark:bg-[#393E46] border-2 border-gray-300 dark:border-[#393E46] shadow-sm dark:shadow-none p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 dark:text-[#888] font-medium">Argent économisé</span>
             <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -94,7 +94,7 @@ export default async function DashboardHome() {
         </div>
 
         {(!recentClips || recentClips.length === 0) ? (
-          <div className="mt-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-[#3a3a40] bg-[#F5F0E8] dark:bg-transparent shadow-sm dark:shadow-none p-8 text-center">
+          <div className="mt-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-[#393E46] bg-[#F5F0E8] dark:bg-transparent shadow-sm dark:shadow-none p-8 text-center">
             <p className="text-sm text-gray-500 dark:text-[#555]">Aucun produit encore. Utilisez l&apos;extension Chrome pour clipper des produits.</p>
           </div>
         ) : (

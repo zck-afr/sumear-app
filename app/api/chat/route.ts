@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createClientWithJWT } from '@/lib/supabase/server'
+import type { User } from '@supabase/supabase-js'
 import { callLLM, type PlanType } from '@/lib/llm/provider'
 
 const CHAT_SYSTEM_PROMPT = `You are BriefAI, an impartial e-commerce shopping advisor. You work exclusively for the buyer — you have zero commercial relationship with any seller or brand.
@@ -10,7 +11,7 @@ RULES:
 - Be concise and direct. No fluff.
 - If you don't have enough data to answer, say so.
 - Be honest about limitations, red flags, and unknowns.
-- Respond in the same language as the user's question.
+- Respond in French by default (BriefAI is in French). If the user clearly asks in another language, respond in that language.
 - If the user asks about durability, quality, or issues, use your knowledge of the brand/product category to give useful context.`
 
 /**
@@ -21,10 +22,24 @@ RULES:
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    let supabase = await createClient()
+    let user: User | null = (await supabase.auth.getUser()).data.user
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // When embedded in iframe, cookies may not be sent; accept Bearer token
+    if (!user) {
+      const authHeader = request.headers.get('Authorization')
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+      if (token) {
+        const jwtClient = createClientWithJWT(token)
+        const { data: { user: userFromJwt }, error } = await jwtClient.auth.getUser(token)
+        if (!error && userFromJwt) {
+          user = userFromJwt
+          supabase = jwtClient
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }

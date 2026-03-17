@@ -81,37 +81,37 @@ export default function ClipsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
-      <div className="flex items-center justify-between">
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Produits</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Produits clippés</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-[#888]">
-            Sélectionnez des produits pour discuter ou comparer.
+            Sélectionnez un ou plusieurs produits pour discuter ou comparer (max. 5).
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           {selected.size === 1 && (
             <button
               onClick={() => router.push(`/chat?clips=${Array.from(selected).join(',')}`)}
-              className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-violet-500 rounded-lg hover:from-violet-500 hover:to-violet-400 transition-all"
+              className="px-4 py-2.5 text-sm font-semibold text-white bg-violet-600 rounded-xl hover:bg-violet-500 transition-colors shadow-sm"
             >
-              💬 Discuter
+              Discuter
             </button>
           )}
           {selected.size >= 2 && (
             <>
               <button
                 onClick={() => router.push(`/chat?clips=${Array.from(selected).join(',')}`)}
-                className="px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white bg-gray-200 dark:bg-[#2e2e33] border border-gray-300 dark:border-[#3a3a40] rounded-lg hover:bg-gray-300 dark:hover:bg-[#3a3a40] transition-colors"
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#2a2a2e] border border-gray-200 dark:border-[#404040] rounded-xl hover:bg-gray-50 dark:hover:bg-[#353538] transition-colors"
               >
-                💬 Discuter
+                Discuter
               </button>
               <button
                 onClick={handleCompare}
                 disabled={comparing}
-                className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-violet-500 rounded-lg hover:from-violet-500 hover:to-violet-400 disabled:opacity-50 transition-all"
+                className="px-4 py-2.5 text-sm font-semibold text-white bg-violet-600 rounded-xl hover:bg-violet-500 disabled:opacity-50 transition-colors shadow-sm"
               >
-                {comparing ? 'Analyse...' : `Comparer (${selected.size})`}
+                {comparing ? 'Analyse…' : `Comparer (${selected.size})`}
               </button>
             </>
           )}
@@ -119,17 +119,19 @@ export default function ClipsPage() {
       </div>
 
       {error && (
-        <div className="mt-4 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
+        <div className="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 px-4 py-3 text-sm">
           {error}
         </div>
       )}
 
       {clips.length === 0 ? (
-        <div className="mt-8 text-center py-12 border-2 border-dashed border-gray-300 dark:border-[#3a3a40] rounded-xl bg-[#F5F0E8] dark:bg-transparent shadow-sm dark:shadow-none">
-          <p className="text-sm text-gray-500 dark:text-[#555]">Aucun produit. Utilisez l&apos;extension pour clipper.</p>
+        <div className="rounded-2xl border border-dashed border-gray-200 dark:border-[#404040] bg-gray-50/50 dark:bg-[#1e1e22]/50 py-16 px-6 text-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-gray-200 dark:bg-[#393E46] flex items-center justify-center text-2xl mb-4">📦</div>
+          <p className="text-sm font-medium text-gray-600 dark:text-[#888]">Aucun produit clippé</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-[#666]">Utilisez l’extension BriefAI sur une page produit pour enregistrer vos premiers produits.</p>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
           {clips.map((clip) => (
             <ProductCard
               key={clip.id}
@@ -145,6 +147,17 @@ export default function ClipsPage() {
   )
 }
 
+function formatRelativeDate(dateStr: string) {
+  const d = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return "Aujourd'hui"
+  if (diffDays === 1) return 'Hier'
+  if (diffDays < 7) return `Il y a ${diffDays} j.`
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
+
 function ProductCard({ clip, isSelected, onToggle, disabled }: {
   clip: Clip; isSelected: boolean; onToggle: () => void; disabled: boolean
 }) {
@@ -156,51 +169,78 @@ function ProductCard({ clip, isSelected, onToggle, disabled }: {
     : null
 
   return (
-    <div
+    <article
       onClick={() => !disabled && onToggle()}
-      className={`relative rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 overflow-hidden cursor-pointer transition-all shadow-sm dark:shadow-none ${
+      className={`group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 ${
         isSelected
-          ? 'border-violet-500 ring-2 ring-violet-500/30'
+          ? 'ring-2 ring-violet-500 ring-offset-2 dark:ring-offset-[#1a1a1e] shadow-lg shadow-violet-500/10'
           : disabled
-          ? 'border-gray-300 dark:border-[#3a3a40] opacity-40 cursor-not-allowed'
-          : 'border-gray-300 dark:border-[#3a3a40] hover:border-gray-400 dark:hover:border-[#4a4a52]'
+          ? 'opacity-50 cursor-not-allowed'
+          : 'hover:shadow-md hover:shadow-black/5 dark:hover:shadow-black/20'
       }`}
     >
-      {/* Checkbox */}
-      <div className="absolute top-3 right-3 z-10">
-        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-          isSelected ? 'bg-violet-500 border-violet-500' : 'bg-white dark:bg-transparent border-gray-400 dark:border-[#444]'
-        }`}>
-          {isSelected && (
-            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
+      <div className={`rounded-2xl border overflow-hidden transition-colors ${
+        isSelected
+          ? 'border-violet-500 bg-white dark:bg-[#2a2a2e]'
+          : 'border-gray-200 dark:border-[#404040] bg-white dark:bg-[#252528] hover:border-gray-300 dark:hover:border-[#4a4a4e]'
+      }`}>
+        {/* Image */}
+        <div className="aspect-[4/3] bg-gray-100 dark:bg-[#1a1a1e] flex items-center justify-center overflow-hidden">
+          {clip.image_url ? (
+            <img
+              src={clip.image_url}
+              alt=""
+              className="w-full h-full object-contain p-5 group-hover:scale-[1.02] transition-transform duration-200"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span className="text-4xl text-gray-300 dark:text-[#404040]">📦</span>
           )}
         </div>
-      </div>
 
-      {/* Image */}
-      <div className="h-36 bg-gray-100 dark:bg-[#111] flex items-center justify-center">
-        {clip.image_url ? (
-          <img src={clip.image_url} alt="" className="h-full w-full object-contain p-4" referrerPolicy="no-referrer" />
-        ) : (
-          <span className="text-gray-400 dark:text-[#333] text-3xl">📦</span>
-        )}
-      </div>
+        {/* Content */}
+        <div className="p-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 leading-snug">
+            {clip.product_name}
+          </p>
+          {clip.brand && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-[#888]">{clip.brand}</p>
+          )}
+          <div className="mt-3 flex items-center justify-between gap-2">
+            {price && (
+              <span className="text-base font-bold text-gray-900 dark:text-white">{price}</span>
+            )}
+            {stars && (
+              <span className="text-xs text-amber-500 dark:text-amber-400" title={`${clip.rating}/5`}>
+                {stars}
+              </span>
+            )}
+          </div>
+          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#353538] flex items-center justify-between text-[11px] text-gray-400 dark:text-[#666]">
+            <span className="truncate">{clip.source_domain}</span>
+            <span className="shrink-0 ml-2">{formatRelativeDate(clip.created_at)}</span>
+          </div>
+        </div>
 
-      {/* Info */}
-      <div className="p-4">
-        <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 leading-tight">{clip.product_name}</p>
-        {clip.brand && <p className="mt-1 text-xs text-gray-600 dark:text-[#666]">{clip.brand}</p>}
-        <div className="mt-2 flex items-center justify-between">
-          {price && <span className="text-base font-bold text-gray-900 dark:text-white">{price}</span>}
-          {stars && <span className="text-xs text-amber-500 dark:text-amber-400">{stars}</span>}
-        </div>
-        <div className="mt-2 flex items-center justify-between text-[10px] text-gray-500 dark:text-[#555]">
-          <span>{clip.source_domain}</span>
-          <span>{new Date(clip.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+        {/* Selection badge */}
+        <div className="absolute top-3 right-3 z-10">
+          <div
+            className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+              isSelected
+                ? 'bg-violet-500 text-white shadow-md'
+                : 'bg-white/90 dark:bg-[#2a2a2e]/90 border border-gray-200 dark:border-[#444] backdrop-blur-sm'
+            }`}
+          >
+            {isSelected ? (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            ) : (
+              <span className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 dark:border-[#555]" />
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   )
 }

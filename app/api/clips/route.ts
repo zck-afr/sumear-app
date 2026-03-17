@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createClientWithJWT } from '@/lib/supabase/server'
+import type { User } from '@supabase/supabase-js'
 import { checkQuota, incrementUsage } from '@/lib/utils/quota'
 
 /**
@@ -13,11 +14,23 @@ import { checkQuota, incrementUsage } from '@/lib/utils/quota'
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    let supabase = await createClient()
+    let user: User | null = (await supabase.auth.getUser()).data.user
 
-    // ── Auth check ──
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    if (!user) {
+      const authHeader = request.headers.get('Authorization')
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+      if (token) {
+        const jwtClient = createClientWithJWT(token)
+        const { data: { user: u } } = await jwtClient.auth.getUser(token)
+        if (u) {
+          user = u
+          supabase = jwtClient
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -108,26 +121,51 @@ export async function POST(request: Request) {
 
 /**
  * GET /api/clips
- * Returns all clips for the authenticated user.
+ * Returns clips for the authenticated user.
+ * Query: ?ids=id1,id2 — optional, filter by clip IDs (for embed).
+ * Auth: cookies or Authorization: Bearer <token> (for iframe).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
+    let supabase = await createClient()
+    let user: User | null = (await supabase.auth.getUser()).data.user
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    if (!user) {
+      const authHeader = request.headers.get('Authorization')
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+      if (token) {
+        const jwtClient = createClientWithJWT(token)
+        const { data: { user: u } } = await jwtClient.auth.getUser(token)
+        if (u) {
+          user = u
+          supabase = jwtClient
+        }
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
       )
     }
 
-    const { data: clips, error } = await supabase
+    const { searchParams } = new URL(request.url)
+    const idsParam = searchParams.get('ids')
+    const ids = idsParam ? idsParam.split(',').map(s => s.trim()).filter(Boolean) : null
+
+    let query = supabase
       .from('clips')
-      .select('id, product_name, brand, source_domain, image_url, price, currency, rating, review_count, extraction_method, created_at')
+      .select('id, product_name, brand, source_domain, image_url, price, currency, rating, review_count, created_at')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(100)
+
+    if (ids?.length) {
+      query = query.in('id', ids)
+    } else {
+      query = query.order('created_at', { ascending: false }).limit(100)
+    }
+
+    const { data: clips, error } = await query
 
     if (error) {
       return NextResponse.json(
@@ -136,7 +174,7 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json({ clips })
+    return NextResponse.json({ clips: clips ?? [] })
   } catch (err) {
     console.error('Unexpected error in GET /api/clips:', err)
     return NextResponse.json(

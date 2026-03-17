@@ -51,12 +51,12 @@ export function RecentClipsGrid({ clips }: { clips: Clip[] }) {
           return (
             <label
               key={clip.id}
-              className={`group flex flex-col rounded-xl bg-[#F5F0E8] dark:bg-[#25252a] border-2 border-gray-300 dark:border-[#3a3a40] shadow-sm dark:shadow-none p-3 cursor-pointer transition-colors ${
-                isSelected ? 'border-violet-500 ring-2 ring-violet-500/30' : 'hover:border-gray-400 dark:hover:border-[#4a4a52]'
+              className={`group flex flex-col rounded-xl bg-[#F5F0E8] dark:bg-[#393E46] border-2 border-gray-300 dark:border-[#393E46] shadow-sm dark:shadow-none p-3 cursor-pointer transition-colors ${
+                isSelected ? 'border-violet-500 ring-2 ring-violet-500/30' : 'hover:border-gray-400 dark:hover:border-[#4a5059]'
               }`}
             >
               <div className="flex items-start gap-3">
-                <span className="relative mt-1.5 shrink-0 flex h-5 w-5 items-center justify-center rounded-md border border-gray-300 dark:border-[#4a4a52] bg-white dark:bg-[#3a3a40] transition-colors group-has-[:checked]:border-violet-500/60 group-has-[:checked]:bg-violet-500/20">
+                <span className="relative mt-1.5 shrink-0 flex h-5 w-5 items-center justify-center rounded-md border border-gray-300 dark:border-[#4a5059] bg-white dark:bg-[#434850] transition-colors group-has-[:checked]:border-violet-500/60 group-has-[:checked]:bg-violet-500/20">
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -69,7 +69,7 @@ export function RecentClipsGrid({ clips }: { clips: Clip[] }) {
                     </svg>
                   )}
                 </span>
-                <div className="w-12 h-12 rounded-lg bg-white dark:bg-[#3a3a40] border border-gray-100 dark:border-transparent flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-12 h-12 rounded-lg bg-white dark:bg-[#434850] border border-gray-100 dark:border-transparent flex items-center justify-center overflow-hidden shrink-0">
                   {clip.image_url ? (
                     <img src={clip.image_url} alt="" className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
                   ) : (
@@ -84,7 +84,7 @@ export function RecentClipsGrid({ clips }: { clips: Clip[] }) {
                   <p className="text-[10px] text-gray-500 dark:text-[#555] mt-0.5">{clip.source_domain} · {timeAgo}</p>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 dark:text-[#555] mt-2 pt-2 border-t border-gray-300 dark:border-[#3a3a40]">
+              <p className="text-xs text-gray-500 dark:text-[#555] mt-2 pt-2 border-t border-gray-300 dark:border-[#393E46]">
                 Discuter
               </p>
             </label>

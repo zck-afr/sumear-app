@@ -53,7 +53,7 @@ export default function HistoriquePage() {
       </p>
 
       {sessions.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#3a3a40] p-8 text-center">
+        <div className="rounded-xl border border-dashed border-[#393E46] p-8 text-center">
           <p className="text-[#888] text-sm">Aucune discussion pour le moment.</p>
           <Link
             href="/chat"
@@ -68,7 +68,7 @@ export default function HistoriquePage() {
             <li key={session.id}>
               <Link
                 href={`/chat?session_id=${session.id}`}
-                className="flex items-center gap-3 rounded-xl px-4 py-3 bg-[#25252a] border border-[#3a3a40] hover:border-[#4a4a52] transition-colors group"
+                className="flex items-center gap-3 rounded-xl px-4 py-3 bg-[#393E46] border border-[#393E46] hover:border-[#4a5059] transition-colors group"
               >
                 <span className="flex-1 text-sm text-white truncate group-hover:text-violet-300 transition-colors">
                   {session.title || 'Discussion'}

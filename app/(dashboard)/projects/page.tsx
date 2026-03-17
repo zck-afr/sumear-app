@@ -21,8 +21,8 @@ export default async function ProjectsPage() {
       </div>
 
       {(!projects || projects.length === 0) ? (
-        <div className="mt-8 text-center py-16 border border-dashed border-[#3a3a40] rounded-xl">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-[#25252a] flex items-center justify-center text-2xl mb-4">📁</div>
+        <div className="mt-8 text-center py-16 border border-dashed border-[#393E46] rounded-xl">
+          <div className="w-12 h-12 mx-auto rounded-xl bg-[#393E46] flex items-center justify-center text-2xl mb-4">📁</div>
           <h3 className="text-sm font-semibold text-white">Aucun projet</h3>
           <p className="mt-1 text-sm text-[#555]">Les projets vous permettent de regrouper vos comparaisons.</p>
           <p className="mt-1 text-xs text-[#444]">Fonctionnalité à venir.</p>
@@ -30,7 +30,7 @@ export default async function ProjectsPage() {
       ) : (
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {projects.map(project => (
-            <div key={project.id} className="rounded-xl bg-[#25252a] border border-[#3a3a40] p-5 hover:border-[#4a4a52] transition-colors">
+            <div key={project.id} className="rounded-xl bg-[#393E46] border border-[#393E46] p-5 hover:border-[#4a5059] transition-colors">
               <h3 className="text-sm font-semibold text-white">{project.name}</h3>
               {project.description && <p className="mt-1 text-xs text-[#888]">{project.description}</p>}
               <p className="mt-3 text-[10px] text-[#555]">

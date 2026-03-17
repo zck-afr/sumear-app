@@ -18,7 +18,7 @@ export default async function SettingsPage() {
       <p className="mt-1 text-sm text-[#888]">Gérez votre compte et vos préférences.</p>
 
       {/* Account */}
-      <div className="mt-8 rounded-xl bg-[#25252a] border border-[#3a3a40] p-5">
+      <div className="mt-8 rounded-xl bg-[#393E46] border border-[#393E46] p-5">
         <h2 className="text-sm font-semibold text-white">Compte</h2>
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -33,7 +33,7 @@ export default async function SettingsPage() {
       </div>
 
       {/* Plan */}
-      <div className="mt-4 rounded-xl bg-[#25252a] border border-[#3a3a40] p-5">
+      <div className="mt-4 rounded-xl bg-[#393E46] border border-[#393E46] p-5">
         <h2 className="text-sm font-semibold text-white">Plan</h2>
         <div className="mt-4 flex items-center justify-between">
           <div>

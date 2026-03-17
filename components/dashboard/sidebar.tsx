@@ -35,7 +35,7 @@ export function DashboardShell({
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#F5F0E8] dark:bg-[#1a1a1e] text-gray-900 dark:text-white">
       {/* Menu horizontal en haut à droite */}
-      <header className="shrink-0 z-40 border-b border-gray-200 dark:border-[#2e2e33] bg-[#F5F0E8] dark:bg-[#1a1a1e]">
+      <header className="shrink-0 z-40 border-b border-gray-200 dark:border-[#393E46] bg-[#F5F0E8] dark:bg-[#1a1a1e]">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-red-500 flex items-center justify-center text-sm font-bold text-white">B</div>
@@ -51,7 +51,7 @@ export function DashboardShell({
                   href={item.href}
                   className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-violet-100 dark:bg-[#2e2e33] text-violet-700 dark:text-white'
+                      ? 'bg-violet-100 dark:bg-[#393E46] text-violet-700 dark:text-white'
                       : 'text-gray-600 dark:text-[#888] hover:bg-gray-100 dark:hover:bg-[#1a1a1a] hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
@@ -66,7 +66,7 @@ export function DashboardShell({
             {avatarUrl ? (
               <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full shrink-0" referrerPolicy="no-referrer" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-[#3a3a40] flex items-center justify-center text-xs font-medium text-gray-600 dark:text-[#888] shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-[#434850] flex items-center justify-center text-xs font-medium text-gray-600 dark:text-[#888] shrink-0">
                 {fullName[0].toUpperCase()}
               </div>
             )}
@@ -92,7 +92,7 @@ export function DashboardShell({
       {/* Settings en bas à gauche */}
       <Link
         href="/settings"
-        className={`fixed bottom-5 left-5 z-20 flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-[#3a3a40] bg-[#F5F0E8] dark:bg-[#25252a] text-sm transition-colors ${
+        className={`fixed bottom-5 left-5 z-20 flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-[#393E46] bg-[#F5F0E8] dark:bg-[#393E46] text-sm transition-colors ${
           pathname === '/settings'
             ? 'text-violet-600 dark:text-violet-400 border-violet-300 dark:border-violet-500/50'
             : 'text-gray-600 dark:text-[#888] hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-[#3f3f46]'

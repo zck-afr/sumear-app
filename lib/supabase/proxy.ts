@@ -31,8 +31,13 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
-  // Don't redirect on API routes or callback
-  if (path.startsWith('/api') || path.startsWith('/callback')) {
+  // Don't redirect on API routes, callback, or embeds (iframe auth via postMessage)
+  if (
+    path.startsWith('/api') ||
+    path.startsWith('/callback') ||
+    path.startsWith('/chat/embed') ||
+    path.startsWith('/compare/embed')
+  ) {
     return supabaseResponse
   }
 
