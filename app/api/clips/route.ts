@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient, createClientWithJWT } from '@/lib/supabase/server'
 import type { User } from '@supabase/supabase-js'
-import { checkQuota, incrementUsage } from '@/lib/utils/quota'
+import { checkQuota } from '@/lib/utils/quota'
+import { checkRateLimit, rateLimitResponse } from '@/lib/utils/rate-limit'
 
 /**
  * POST /api/clips
@@ -37,6 +38,12 @@ export async function POST(request: Request) {
       )
     }
 
+    const rl = checkRateLimit(`clips:${user.id}`, 8)
+    if (!rl.allowed) {
+      const r = rateLimitResponse(rl.retryAfterMs)
+      return NextResponse.json(r.body, { status: r.status, headers: r.headers })
+    }
+
     // ── Parse body ──
     let body: any
     try {
@@ -56,12 +63,65 @@ export async function POST(request: Request) {
       )
     }
 
+    // ── Input length limits ──
+    const STR_MAX = 1000
+    const TEXT_MAX = 10_000
+    const SPECS_MAX_KEYS = 50
+    const SPECS_VALUE_MAX = 2000
+
+    if (typeof body.source_url !== 'string' || body.source_url.length > 2048 ||
+        typeof body.product_name !== 'string' || body.product_name.length > STR_MAX) {
+      return NextResponse.json(
+        { error: 'Field too long or invalid type', code: 'INVALID_INPUT' },
+        { status: 400 }
+      )
+    }
+
+    if (body.brand && (typeof body.brand !== 'string' || body.brand.length > STR_MAX)) {
+      return NextResponse.json({ error: 'brand too long', code: 'INVALID_INPUT' }, { status: 400 })
+    }
+    if (body.description && (typeof body.description !== 'string' || body.description.length > TEXT_MAX)) {
+      return NextResponse.json({ error: 'description too long', code: 'INVALID_INPUT' }, { status: 400 })
+    }
+    if (body.raw_markdown && (typeof body.raw_markdown !== 'string' || body.raw_markdown.length > 50_000)) {
+      return NextResponse.json({ error: 'raw_markdown too long', code: 'INVALID_INPUT' }, { status: 400 })
+    }
+
+    if (body.extracted_specs && typeof body.extracted_specs === 'object') {
+      const entries = Object.entries(body.extracted_specs)
+      const sanitized: Record<string, string> = {}
+      let count = 0
+      for (const [k, v] of entries) {
+        if (count >= SPECS_MAX_KEYS) break
+        const key = String(k).slice(0, 200)
+        const val = String(v).slice(0, SPECS_VALUE_MAX)
+        if (key) { sanitized[key] = val; count++ }
+      }
+      body.extracted_specs = sanitized
+    }
+
+    // ── Validate project_id ownership ──
+    if (body.project_id) {
+      const { data: proj } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('id', body.project_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (!proj) {
+        return NextResponse.json(
+          { error: 'Project not found or not yours', code: 'INVALID_PROJECT' },
+          { status: 400 }
+        )
+      }
+    }
+
     // ── Quota check ──
     const quota = await checkQuota(supabase, user.id, 'clips')
     if (!quota.is_allowed) {
       return NextResponse.json(
         {
-          error: 'Clip quota exceeded',
+          error: 'Quota de clips atteint (plan Free : 8 clips max). Passe au Complete pour des clips illimités.',
           code: 'QUOTA_EXCEEDED',
           clips_count: quota.clips_count,
           clips_limit: quota.clips_limit,
@@ -102,9 +162,6 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
-
-    // ── Increment usage ──
-    await incrementUsage(supabase, user.id, 'clips')
 
     return NextResponse.json(
       { clip, quota: { clips_count: quota.clips_count + 1, clips_limit: quota.clips_limit } },

@@ -1,12 +1,39 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Plus_Jakarta_Sans, Playfair_Display, Fraunces, Varela_Round } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 
-const inter = Inter({ subsets: ['latin'] })
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-plus-jakarta-sans',
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
+})
+
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-playfair-display',
+  display: 'swap',
+  weight: ['500', '600', '700'],
+})
+
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces',
+  display: 'swap',
+  weight: ['300'],
+  style: ['normal', 'italic'],
+})
+
+const varelaRound = Varela_Round({
+  subsets: ['latin'],
+  variable: '--font-varela-round',
+  display: 'swap',
+  weight: '400',
+})
 
 export const metadata: Metadata = {
-  title: 'BriefAI — Assistant Shopping Intelligent',
+  title: 'Sumear — Assistant Shopping Intelligent',
   description: 'Comparez vos produits e-commerce avec l\'IA.',
 }
 
@@ -17,10 +44,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${plusJakartaSans.variable} ${playfairDisplay.variable} ${fraunces.variable} ${varelaRound.variable}`}>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('briefai-theme');if(t==='light')document.documentElement.classList.remove('dark');else document.documentElement.classList.add('dark');})();`,
+            __html: `(function(){var t=localStorage.getItem('sumear-theme')||'light';document.documentElement.setAttribute('data-theme',t);if(t==='dark')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');})();`,
           }}
         />
         <ThemeProvider>

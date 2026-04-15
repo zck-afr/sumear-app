@@ -23,7 +23,7 @@ function LoginContent() {
           <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-violet-500 to-red-500 flex items-center justify-center text-lg font-bold text-white mb-4">
             B
           </div>
-          <h1 className="text-2xl font-bold text-white">BriefAI</h1>
+          <h1 className="text-2xl font-bold text-white">Sumear</h1>
           <p className="mt-2 text-sm text-[#888]">Votre assistant shopping intelligent</p>
         </div>
 

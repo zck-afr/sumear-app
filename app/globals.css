@@ -1,6 +1,10 @@
+@import url("https://fonts.googleapis.com/css2?family=Varela+Round&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+html {
+  font-size: 19.8px;
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -146,5 +150,222 @@ textarea.scrollbar-hide::-webkit-scrollbar,
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-plus-jakarta-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 }
+
+/* Playfair Display utility — use class="font-display" on headings and numbers */
+.font-display {
+  font-family: var(--font-playfair-display), Georgia, 'Times New Roman', serif;
+}
+
+/* ── Dashboard design tokens ─────────────────────────────────────────────── */
+/* Fallback: always available even before data-theme is applied */
+:root {
+  --bg-page:        #F9F4F0;
+  --bg-sidebar:     #F0E8E0;
+  --bg-card:        #FFFCFA;
+  --bg-secondary:   #EDE8DF;
+  --bg-tertiary:    #E8DCD2;
+  --accent:         #B8715A;
+  --accent-light:   #EDD8CC;
+  --text-primary:   #2A1E18;
+  --text-secondary: #7A6258;
+  --text-muted:     #B09890;
+  --border:         rgba(42,30,24,.07);
+  --border-md:      rgba(42,30,24,.12);
+  --tag-bg:         #EDD8CC;
+  --tag-text:       #8C4A35;
+  --green:          #6A9E6A;
+  --footer-bg:      #B8715A;
+
+  --ds-bg-page:        #F9F4F0;
+  --ds-bg-sidebar:     #F0E8E0;
+  --ds-bg-card:        #FFFCFA;
+  --ds-bg-hover:       #E8DCD2;
+  --ds-bg-image:       #EDE8DF;
+  --ds-bg-tag:         #EDD8CC;
+  --ds-accent:         #B8715A;
+  --ds-accent-light:   #EDD8CC;
+  --ds-text-primary:   #2A1E18;
+  --ds-text-secondary: #7A6258;
+  --ds-text-muted:     #B09890;
+  --ds-text-tag:       #8C4A35;
+  --ds-border-07:      rgba(42,30,24,.07);
+  --ds-border-10:      rgba(42,30,24,.10);
+  --ds-border-12:      rgba(42,30,24,.12);
+  --ds-border-20:      rgba(42,30,24,.20);
+  --ds-green:          #6A9E6A;
+  --ds-footer-bg:      #B8715A;
+}
+
+[data-theme="light"] {
+  /* Terre terracotta / linen — light theme */
+  --bg-page:        #F9F4F0;
+  --bg-sidebar:     #F0E8E0;
+  --bg-card:        #FFFCFA;
+  --bg-secondary:   #EDE8DF;
+  --bg-tertiary:    #E8DCD2;
+  --accent:         #B8715A;
+  --accent-light:   #EDD8CC;
+  --text-primary:   #2A1E18;
+  --text-secondary: #7A6258;
+  --text-muted:     #B09890;
+  --border:         rgba(42,30,24,.07);
+  --border-md:      rgba(42,30,24,.12);
+  --tag-bg:         #EDD8CC;
+  --tag-text:       #8C4A35;
+  --green:          #6A9E6A;
+  --footer-bg:      #B8715A;
+
+  /* --ds-* aliases — existing components need no changes */
+  --ds-bg-page:       var(--bg-page);
+  --ds-bg-sidebar:    var(--bg-sidebar);
+  --ds-bg-card:       var(--bg-card);
+  --ds-bg-hover:      var(--bg-tertiary);
+  --ds-bg-image:      var(--bg-secondary);
+  --ds-bg-tag:        var(--tag-bg);
+  --ds-accent:        var(--accent);
+  --ds-accent-light:  var(--accent-light);
+  --ds-text-primary:  var(--text-primary);
+  --ds-text-secondary:var(--text-secondary);
+  --ds-text-muted:    var(--text-muted);
+  --ds-text-tag:      var(--tag-text);
+  --ds-border-07:     var(--border);
+  --ds-border-10:     rgba(42,30,24,.10);
+  --ds-border-12:     var(--border-md);
+  --ds-border-20:     rgba(42,30,24,.20);
+  --ds-green:         var(--green);
+  --ds-footer-bg:     var(--footer-bg);
+}
+
+[data-theme="dark"] {
+  /* Terre brûlée — dark theme */
+  --bg-page:        #1C1410;
+  --bg-sidebar:     #150F0B;
+  --bg-card:        #241A14;
+  --bg-secondary:   #2C1F17;
+  --bg-tertiary:    #321F14;
+  --accent:         #C8A882;
+  --accent-light:   rgba(200,168,130,.15);
+  --text-primary:   #F0E0CC;
+  --text-secondary: #C8B8A8;
+  --text-muted:     rgba(240,224,204,.35);
+  --border:         rgba(255,200,150,.06);
+  --border-md:      rgba(255,200,150,.1);
+  --tag-bg:         rgba(200,168,130,.15);
+  --tag-text:       #C8A882;
+  --green:          #7AB87A;
+  --footer-bg:      #150F0B;
+
+  /* --ds-* aliases */
+  --ds-bg-page:       var(--bg-page);
+  --ds-bg-sidebar:    var(--bg-sidebar);
+  --ds-bg-card:       var(--bg-card);
+  --ds-bg-hover:      var(--bg-tertiary);
+  --ds-bg-image:      var(--bg-secondary);
+  --ds-bg-tag:        var(--tag-bg);
+  --ds-accent:        var(--accent);
+  --ds-accent-light:  var(--accent-light);
+  --ds-text-primary:  var(--text-primary);
+  --ds-text-secondary:var(--text-secondary);
+  --ds-text-muted:    var(--text-muted);
+  --ds-text-tag:      var(--tag-text);
+  --ds-border-07:     var(--border);
+  --ds-border-10:     rgba(255,200,150,.08);
+  --ds-border-12:     var(--border-md);
+  --ds-border-20:     rgba(255,200,150,.16);
+  --ds-green:         var(--green);
+  --ds-footer-bg:     var(--footer-bg);
+}
+/* ── Legal pages typography ──
+   Add this block to your globals.css */
+
+   .legal-content h1 {
+    font-family: var(--font-fraunces), Fraunces, serif;
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  
+  .legal-content > p:first-of-type {
+    /* "Dernière mise à jour" line */
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 40px;
+  }
+  
+  .legal-content h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 40px;
+    margin-bottom: 12px;
+  }
+  
+  .legal-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+  
+  .legal-content p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+  
+  .legal-content ul {
+    padding-left: 20px;
+    margin-bottom: 12px;
+  }
+  
+  .legal-content li {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+  
+  .legal-content strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  
+  .legal-content a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  
+  .legal-content a:hover {
+    text-decoration: underline;
+  }
+  
+  .legal-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  
+  .legal-content th,
+  .legal-content td {
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid var(--bg-sidebar);
+    color: var(--text-secondary);
+  }
+  
+  .legal-content th {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  
+  .legal-content code {
+    font-size: 13px;
+    background: var(--bg-card);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }

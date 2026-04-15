@@ -1,105 +1,132 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import { normalizeBillingPlan, PLAN_LIMITS, type BillingPlan } from '@/lib/config/plans'
 
-interface QuotaResult {
+export type QuotaCheckType = 'ai_messages' | 'clips' | 'projects'
+
+export interface QuotaResult {
   is_allowed: boolean
+  /** Plan normalisé pour l'affichage / logique métier */
+  plan: BillingPlan
   clips_count: number
   clips_limit: number
-  comparisons_count: number
-  comparisons_limit: number
-  plan: string
+  ai_messages_count: number
+  ai_messages_limit: number
+  projects_count: number
+  projects_limit: number
 }
 
-const PLAN_LIMITS = {
-  free: { clips: 20, comparisons: 5, projects: 3 },
-  pro: { clips: Infinity, comparisons: Infinity, projects: Infinity },
-  complete: { clips: Infinity, comparisons: 40, projects: Infinity },
-} as const
-
 /**
- * Check if user has remaining quota for clips or comparisons.
+ * Vérifie un quota précis. Les champs non concernés par `type` sont remplis à 0 / Infinity selon le cas.
  */
 export async function checkQuota(
   supabase: SupabaseClient,
   userId: string,
-  type: 'clips' | 'comparisons'
+  type: QuotaCheckType
 ): Promise<QuotaResult> {
-  // Get user plan
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('plan')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
-  const plan = (profile?.plan || 'free') as keyof typeof PLAN_LIMITS
-  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free
+  // Fail-closed : pas de ligne profil, erreur réseau/RLS, ou plan NULL → quotas « free »
+  const rawPlan = profile?.plan
+  const plan: BillingPlan =
+    profileError || !profile || rawPlan == null || String(rawPlan).trim() === ''
+      ? 'free'
+      : normalizeBillingPlan(rawPlan)
+  const limits = PLAN_LIMITS[plan]
 
-  // Get current month usage
-  const now = new Date()
-  const { data: usage } = await supabase
-    .from('usage')
-    .select('clips_count, comparisons_count')
-    .eq('user_id', userId)
-    .eq('year', now.getFullYear())
-    .eq('month', now.getMonth() + 1)
-    .single()
-
-  const clipsCount = usage?.clips_count || 0
-  const comparisonsCount = usage?.comparisons_count || 0
-
-  const isAllowed = type === 'clips'
-    ? clipsCount < limits.clips
-    : comparisonsCount < limits.comparisons
-
-  return {
-    is_allowed: isAllowed,
-    clips_count: clipsCount,
-    clips_limit: limits.clips,
-    comparisons_count: comparisonsCount,
-    comparisons_limit: limits.comparisons,
-    plan,
-  }
-}
-
-/**
- * Increment usage counter after a successful action.
- */
-export async function incrementUsage(
-  supabase: SupabaseClient,
-  userId: string,
-  type: 'clips' | 'comparisons',
-  amount: number = 1
-): Promise<void> {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth() + 1
 
-  // Upsert: create if not exists, increment if exists
-  const { data: existing } = await supabase
+  let clipsCount = 0
+  let projectsCount = 0
+  let aiMessagesCount = 0
+
+  const { count: clipTotal } = await supabase
+    .from('clips')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  clipsCount = clipTotal ?? 0
+
+  const { count: projectTotal } = await supabase
+    .from('projects')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  projectsCount = projectTotal ?? 0
+
+  const { data: usageRow } = await supabase
     .from('usage')
-    .select('id, clips_count, comparisons_count')
+    .select('*')
     .eq('user_id', userId)
     .eq('year', year)
     .eq('month', month)
-    .single()
+    .maybeSingle()
 
-  if (existing) {
-    const update = type === 'clips'
-      ? { clips_count: existing.clips_count + amount }
-      : { comparisons_count: existing.comparisons_count + amount }
+  const rawRow = usageRow as Record<string, unknown> | null
+  aiMessagesCount = typeof rawRow?.ai_messages_count === 'number' ? rawRow.ai_messages_count : 0
 
-    await supabase
-      .from('usage')
-      .update(update)
-      .eq('id', existing.id)
-  } else {
-    await supabase
-      .from('usage')
-      .insert({
-        user_id: userId,
-        year,
-        month,
-        clips_count: type === 'clips' ? amount : 0,
-        comparisons_count: type === 'comparisons' ? amount : 0,
-      })
+  const clipsLimit = limits.clips_total
+  const projectsLimit = limits.projects_total
+  const aiLimit = limits.ai_messages_per_month
+
+  let isAllowed = true
+  if (type === 'clips') isAllowed = clipsCount < clipsLimit
+  else if (type === 'projects') isAllowed = projectsCount < projectsLimit
+  else if (type === 'ai_messages') isAllowed = aiMessagesCount < aiLimit
+
+  const asLimit = (n: number) => (Number.isFinite(n) ? n : -1)
+
+  return {
+    is_allowed: isAllowed,
+    plan,
+    clips_count: clipsCount,
+    clips_limit: asLimit(clipsLimit),
+    ai_messages_count: aiMessagesCount,
+    ai_messages_limit: asLimit(aiLimit),
+    projects_count: projectsCount,
+    projects_limit: asLimit(projectsLimit),
   }
+}
+
+export type IncrementUsageType = 'clips' | 'ai_messages'
+
+export interface TokenUsage {
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number
+}
+
+/**
+ * Incrémente les compteurs mensuels dans `usage` via la fonction SECURITY DEFINER `increment_usage`.
+ * Les quotas clips/projets se basent sur le nombre de lignes — ne pas appeler pour `clips` après un insert.
+ * Pass `tokens` to also aggregate token/cost data in the monthly usage row.
+ */
+export async function incrementUsage(
+  supabase: SupabaseClient,
+  userId: string,
+  kind: IncrementUsageType,
+  amount: number = 1,
+  tokens?: TokenUsage
+): Promise<boolean> {
+  const p_clips = kind === 'clips' ? amount : 0
+  const p_ai_messages = kind === 'ai_messages' ? amount : 0
+
+  const { error } = await supabase.rpc('increment_usage', {
+    p_user_id: userId,
+    p_clips: p_clips,
+    p_comparisons: 0,
+    p_input_tokens: tokens?.input_tokens ?? 0,
+    p_output_tokens: tokens?.output_tokens ?? 0,
+    p_api_cost: tokens?.cost_usd ?? 0,
+    p_ai_messages: p_ai_messages,
+  })
+
+  if (error) {
+    console.error('[quota] increment_usage RPC failed:', error.message, error)
+    return false
+  }
+  return true
 }

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const res = await fetch(url.toString(), {
-      headers: { 'User-Agent': 'BriefAI/1.0 (Image proxy)' },
+      headers: { 'User-Agent': 'Sumear/1.0 (Image proxy)' },
       redirect: 'follow',
     })
     if (!res.ok) {

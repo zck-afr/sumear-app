@@ -1,5 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
+import { revalidatePath } from 'next/cache'
+import { ProjectCard, type Project } from './project-card-client'
+import { NewProjectButton } from './new-project-button'
+
+const fraunces = 'var(--font-fraunces), serif'
+const jakarta  = 'var(--font-plus-jakarta-sans), sans-serif'
+
+async function deleteProject(id: string) {
+  'use server'
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  await supabase.from('projects').delete().eq('id', id).eq('user_id', user.id)
+  revalidatePath('/projects')
+}
+
 
 export default async function ProjectsPage() {
   const supabase = await createClient()
@@ -7,39 +22,88 @@ export default async function ProjectsPage() {
 
   const { data: projects } = await supabase
     .from('projects')
-    .select('id, name, description, created_at')
+    .select('id, name, emoji, description, created_at, updated_at, clips(id, product_name, price, image_url)')
     .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false })
+
+  const projectList = (projects ?? []) as unknown as Project[]
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
-      <div className="flex items-center justify-between">
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100vh',
+    }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1 className="text-2xl font-bold text-white">Projets</h1>
-          <p className="mt-1 text-sm text-[#888]">Organisez vos comparaisons par projet.</p>
+          <span style={{
+            display: 'block',
+            fontFamily: fraunces,
+            fontSize: 36, fontWeight: 300, fontStyle: 'italic',
+            color: 'var(--text-primary)',
+            letterSpacing: '-.4px', lineHeight: 1.1,
+          }}>
+            Projets,
+          </span>
+          <span style={{
+            display: 'block',
+            fontFamily: fraunces,
+            fontSize: 22, fontWeight: 300,
+            color: 'var(--accent)',
+            lineHeight: 1.1,
+          }}>
+            vos listes d&apos;achat 📋
+          </span>
+          <p style={{
+            fontSize: 12, color: 'var(--text-muted)',
+            marginTop: 6, marginBottom: 0, fontFamily: jakarta,
+          }}>
+            Organisez vos produits par projet et demandez conseil à l&apos;IA.
+          </p>
         </div>
+
+        <NewProjectButton />
       </div>
 
-      {(!projects || projects.length === 0) ? (
-        <div className="mt-8 text-center py-16 border border-dashed border-[#393E46] rounded-xl">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-[#393E46] flex items-center justify-center text-2xl mb-4">📁</div>
-          <h3 className="text-sm font-semibold text-white">Aucun projet</h3>
-          <p className="mt-1 text-sm text-[#555]">Les projets vous permettent de regrouper vos comparaisons.</p>
-          <p className="mt-1 text-xs text-[#444]">Fonctionnalité à venir.</p>
+      {/* Empty state */}
+      {projectList.length === 0 ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 16,
+          padding: '60px 0',
+        }}>
+          <span style={{ fontSize: 48 }}>📋</span>
+          <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', margin: 0, fontFamily: jakarta }}>
+            Aucun projet pour l&apos;instant.
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, maxWidth: 320, textAlign: 'center', fontFamily: jakarta }}>
+            Créez un projet pour organiser vos produits et demandez conseil à l&apos;IA.
+          </p>
+          <NewProjectButton label="Créer mon premier projet" />
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {projects.map(project => (
-            <div key={project.id} className="rounded-xl bg-[#393E46] border border-[#393E46] p-5 hover:border-[#4a5059] transition-colors">
-              <h3 className="text-sm font-semibold text-white">{project.name}</h3>
-              {project.description && <p className="mt-1 text-xs text-[#888]">{project.description}</p>}
-              <p className="mt-3 text-[10px] text-[#555]">
-                Créé le {new Date(project.created_at).toLocaleDateString('fr-FR')}
-              </p>
-            </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 12,
+          marginTop: 28,
+        }}>
+          {projectList.map(project => (
+            <ProjectCard key={project.id} project={project} deleteAction={deleteProject} />
           ))}
         </div>
       )}
+
+      <style>{`
+        .proj-card:hover { box-shadow: 0 4px 20px rgba(42,30,24,.08); }
+        .proj-delete-btn:hover { background: rgba(192,112,112,.15) !important; }
+        .proj-delete-btn:hover svg { stroke: #C07070 !important; }
+        [data-theme="dark"] .proj-delete-btn { background: transparent; }
+        [data-theme="dark"] .proj-card:hover .proj-delete-btn { background: rgba(255,255,255,.12); }
+        [data-theme="dark"] .proj-delete-btn:hover { background: rgba(192,112,112,.15) !important; }
+      `}</style>
     </div>
   )
 }

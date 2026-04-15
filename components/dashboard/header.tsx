@@ -20,7 +20,7 @@ export function DashboardHeader({ user }: { user: User }) {
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-6">
       {/* Mobile menu button placeholder */}
       <div className="lg:hidden">
-        <span className="text-lg font-bold text-gray-900">BriefAI</span>
+        <span className="text-lg font-bold text-gray-900">Sumear</span>
       </div>
 
       <div className="flex flex-1 justify-end gap-x-4">

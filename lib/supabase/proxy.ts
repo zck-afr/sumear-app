@@ -35,8 +35,7 @@ export async function updateSession(request: NextRequest) {
   if (
     path.startsWith('/api') ||
     path.startsWith('/callback') ||
-    path.startsWith('/chat/embed') ||
-    path.startsWith('/compare/embed')
+    path.startsWith('/chat/embed')
   ) {
     return supabaseResponse
   }
