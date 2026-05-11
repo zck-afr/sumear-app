@@ -197,6 +197,10 @@ textarea.scrollbar-hide::-webkit-scrollbar,
   --ds-border-20:      rgba(42,30,24,.20);
   --ds-green:          #6A9E6A;
   --ds-footer-bg:      #B8715A;
+  --ds-chat-topbar:    #2A1E18;
+  --ds-danger:         #C07070;
+  --ds-danger-bg:      rgba(192,112,112,.07);
+  --ds-danger-border:  rgba(192,112,112,.2);
 }
 
 [data-theme="light"] {
@@ -237,26 +241,30 @@ textarea.scrollbar-hide::-webkit-scrollbar,
   --ds-border-20:     rgba(42,30,24,.20);
   --ds-green:         var(--green);
   --ds-footer-bg:     var(--footer-bg);
+  --ds-chat-topbar:   #2A1E18;
+  --ds-danger:        #C07070;
+  --ds-danger-bg:     rgba(192,112,112,.07);
+  --ds-danger-border: rgba(192,112,112,.2);
 }
 
 [data-theme="dark"] {
-  /* Terre brûlée — dark theme */
-  --bg-page:        #1C1410;
-  --bg-sidebar:     #150F0B;
-  --bg-card:        #241A14;
-  --bg-secondary:   #2C1F17;
-  --bg-tertiary:    #321F14;
+  /* Neutral charcoal + warm sand accent (dashboard tokens) */
+  --bg-page:        #1A1A1A;
+  --bg-sidebar:     #141414;
+  --bg-card:        #1F1F1F;
+  --bg-secondary:   #242424;
+  --bg-tertiary:    #2A2A2A;
   --accent:         #C8A882;
   --accent-light:   rgba(200,168,130,.15);
-  --text-primary:   #F0E0CC;
-  --text-secondary: #C8B8A8;
-  --text-muted:     rgba(240,224,204,.35);
-  --border:         rgba(255,200,150,.06);
-  --border-md:      rgba(255,200,150,.1);
-  --tag-bg:         rgba(200,168,130,.15);
+  --text-primary:   #F0EDE8;
+  --text-secondary: #B8B4AE;
+  --text-muted:     rgba(240,237,232,.42);
+  --border:         rgba(255,255,255,.06);
+  --border-md:      rgba(255,255,255,.1);
+  --tag-bg:         rgba(200,168,130,.12);
   --tag-text:       #C8A882;
   --green:          #7AB87A;
-  --footer-bg:      #150F0B;
+  --footer-bg:      #141414;
 
   /* --ds-* aliases */
   --ds-bg-page:       var(--bg-page);
@@ -272,12 +280,23 @@ textarea.scrollbar-hide::-webkit-scrollbar,
   --ds-text-muted:    var(--text-muted);
   --ds-text-tag:      var(--tag-text);
   --ds-border-07:     var(--border);
-  --ds-border-10:     rgba(255,200,150,.08);
+  --ds-border-10:     rgba(255,255,255,.08);
   --ds-border-12:     var(--border-md);
-  --ds-border-20:     rgba(255,200,150,.16);
+  --ds-border-20:     rgba(255,255,255,.16);
   --ds-green:         var(--green);
   --ds-footer-bg:     var(--footer-bg);
+  --ds-chat-topbar:   #0F0F0F;
+  --ds-danger:        #D98B8B;
+  --ds-danger-bg:     rgba(217,139,139,.12);
+  --ds-danger-border: rgba(217,139,139,.3);
 }
+
+/* ── Chat textarea placeholder (theme-aware) ── */
+.chat-textarea::placeholder {
+  color: var(--ds-text-muted);
+  opacity: 1;
+}
+
 /* ── Legal pages typography ──
    Add this block to your globals.css */
 

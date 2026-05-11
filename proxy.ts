@@ -12,6 +12,7 @@ const MARKETING_PATHS_EXACT = [
   '/privacy',
   '/mentions',
   '/cgu',
+  '/login',
 ]
 const MARKETING_PATHS_PREFIX = ['/legal/']
 

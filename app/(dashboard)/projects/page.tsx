@@ -22,7 +22,7 @@ export default async function ProjectsPage() {
 
   const { data: projects } = await supabase
     .from('projects')
-    .select('id, name, emoji, description, created_at, updated_at, clips(id, product_name, price, image_url)')
+    .select('*, clips(id, product_name, price, image_url)')
     .eq('user_id', user!.id)
     .order('updated_at', { ascending: false })
 
@@ -32,77 +32,80 @@ export default async function ProjectsPage() {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      minHeight: '100vh',
     }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
           <span style={{
             display: 'block',
             fontFamily: fraunces,
-            fontSize: 36, fontWeight: 300, fontStyle: 'italic',
+            fontSize: 36, fontWeight: 300, fontStyle: 'normal',
             color: 'var(--text-primary)',
             letterSpacing: '-.4px', lineHeight: 1.1,
           }}>
-            Projets,
+            Projects
           </span>
-          <span style={{
-            display: 'block',
-            fontFamily: fraunces,
-            fontSize: 22, fontWeight: 300,
-            color: 'var(--accent)',
-            lineHeight: 1.1,
-          }}>
-            vos listes d&apos;achat 📋
-          </span>
-          <p style={{
-            fontSize: 12, color: 'var(--text-muted)',
-            marginTop: 6, marginBottom: 0, fontFamily: jakarta,
-          }}>
-            Organisez vos produits par projet et demandez conseil à l&apos;IA.
-          </p>
         </div>
 
         <NewProjectButton />
       </div>
 
-      {/* Empty state */}
+      {/* Empty state — centered horizontally, short space below header */}
       {projectList.length === 0 ? (
-        <div style={{
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', gap: 16,
-          padding: '60px 0',
-        }}>
-          <span style={{ fontSize: 48 }}>📋</span>
-          <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', margin: 0, fontFamily: jakarta }}>
-            Aucun projet pour l&apos;instant.
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            marginTop: 260,
+            gap: 12,
+          }}
+        >
+          <span style={{
+            fontFamily: fraunces,
+            fontSize: 22,
+            fontWeight: 300,
+            fontStyle: 'normal',
+            color: 'var(--text-primary)',
+            letterSpacing: '-.2px',
+          }}>
+            No projects yet.
+          </span>
+          <p style={{
+            fontSize: 13,
+            color: 'var(--text-muted)',
+            lineHeight: 1.6,
+            maxWidth: 280,
+            margin: '0 auto',
+            fontFamily: jakarta,
+          }}>
+            Create a project to organise your products and get AI advice.
           </p>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, maxWidth: 320, textAlign: 'center', fontFamily: jakarta }}>
-            Créez un projet pour organiser vos produits et demandez conseil à l&apos;IA.
-          </p>
-          <NewProjectButton label="Créer mon premier projet" />
         </div>
       ) : (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-          marginTop: 28,
+          gap: 28,
+          marginTop: 56,
         }}>
-          {projectList.map(project => (
-            <ProjectCard key={project.id} project={project} deleteAction={deleteProject} />
+          {projectList.map((project, listIndex) => (
+            <ProjectCard key={project.id} project={project} listIndex={listIndex} deleteAction={deleteProject} />
           ))}
         </div>
       )}
 
       <style>{`
         .proj-card:hover { box-shadow: 0 4px 20px rgba(42,30,24,.08); }
-        .proj-delete-btn:hover { background: rgba(192,112,112,.15) !important; }
-        .proj-delete-btn:hover svg { stroke: #C07070 !important; }
+        /* Icône poubelle : crème light (--bg-card), crème chaud lisible en dark */
+        .proj-delete-btn { color: var(--bg-card); }
+        [data-theme="dark"] .proj-delete-btn { color: rgba(240, 237, 232, 0.9); }
+        .proj-delete-btn:hover { background: rgba(192,112,112,.22) !important; }
         [data-theme="dark"] .proj-delete-btn { background: transparent; }
-        [data-theme="dark"] .proj-card:hover .proj-delete-btn { background: rgba(255,255,255,.12); }
-        [data-theme="dark"] .proj-delete-btn:hover { background: rgba(192,112,112,.15) !important; }
+        [data-theme="dark"] .proj-delete-btn:hover { background: rgba(192,112,112,.25) !important; }
       `}</style>
     </div>
   )

@@ -13,6 +13,14 @@ const appDir = path.dirname(fileURLToPath(import.meta.url));
 const realAppRoot = realpathSync(appDir);
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      // /historique was replaced by /chat (conversational chat with session history).
+      { source: '/historique', destination: '/chat', permanent: true },
+      { source: '/historique/:path*', destination: '/chat', permanent: true },
+    ]
+  },
+
   webpack(config) {
     // Windows : le CWD peut être `...\desktop\...` alors que le disque expose
     // `...\Desktop\...`. Webpack traite alors certains chemins comme des modules

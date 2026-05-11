@@ -6,7 +6,7 @@
  * while preserving legitimate product information (prices, specs, reviews).
  */
 
-const REPLACEMENT = '[contenu filtré]'
+const REPLACEMENT = '[filtered content]'
 
 // Flexible determiner group for French: tes, vos, les, toutes les, toutes, mes, ces, etc.
 const FR_DET = '(?:tes?|vos?|les?|toutes?(?:\\s+les)?|mes|ces|ses|leurs?)'

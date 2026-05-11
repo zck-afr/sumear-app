@@ -30,7 +30,7 @@ export default async function SettingsPage({
   const displayName =
     (user.user_metadata as Record<string, string> | undefined)?.full_name ||
     user.email?.split('@')[0] ||
-    'Utilisateur'
+    'User'
 
   // Sync avec Stripe : si un stripe_subscription_id existe, on vérifie le statut
   // réel pour détecter les annulations que le webhook n'aurait pas encore traitées.

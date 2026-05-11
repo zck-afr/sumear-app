@@ -68,7 +68,7 @@ export function rateLimitResponse(retryAfterMs: number) {
   const retryAfterSec = Math.ceil(retryAfterMs / 1000)
   return {
     body: {
-      error: `Trop de requêtes. Réessayez dans ${retryAfterSec}s.`,
+      error: `Too many requests. Try again in ${retryAfterSec}s.`,
       code: 'RATE_LIMITED' as const,
     },
     status: 429 as const,

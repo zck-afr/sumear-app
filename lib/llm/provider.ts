@@ -311,3 +311,18 @@ export function estimateCost(
 export function getModelConfig(plan: PlanType): ModelConfig {
   return MODEL_BY_PLAN[plan]
 }
+
+/**
+ * Direct access to the singleton Anthropic client.
+ * Most callers should use `streamLLM`/`callLLM` instead — this is reserved
+ * for routes that need features the high-level helpers don't expose
+ * (e.g. tools / web_search on the conversational chat route).
+ */
+export function getAnthropicClient(): Anthropic {
+  return getClient()
+}
+
+/** Sonnet 4.5 model id — Complete plan + advanced features (web_search, etc.). */
+export const MODEL_SONNET = MODEL_BY_PLAN.complete.model
+/** Haiku 4.5 model id — cheap auxiliary calls (auto-titles, etc.). */
+export const MODEL_HAIKU = MODEL_BY_PLAN.free.model

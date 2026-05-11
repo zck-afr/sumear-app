@@ -8,18 +8,22 @@ const jakarta = 'var(--font-plus-jakarta-sans), sans-serif'
 function PlusIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <path d="M6 1v10M1 6h10" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }
 
-const EMOJI_SUGGESTIONS = ['📦', '🛍️', '🏠', '💻', '👗', '🎮', '🍳', '🌿', '✈️', '🎁']
-
-export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string }) {
+export function NewProjectButton({
+  label = 'New project',
+  variant = 'outline',
+}: {
+  label?: string
+  /** `primary` = accent fill (e.g. empty state CTA); `outline` = header style */
+  variant?: 'outline' | 'primary'
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [emoji, setEmoji] = useState('📦')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -27,7 +31,6 @@ export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string 
   useEffect(() => {
     if (open) {
       setName('')
-      setEmoji('📦')
       setError('')
       setTimeout(() => inputRef.current?.focus(), 50)
     }
@@ -43,19 +46,19 @@ export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string 
 
   async function handleCreate() {
     const trimmed = name.trim()
-    if (!trimmed) { setError('Le nom du projet est requis.'); return }
-    if (trimmed.length > 100) { setError('100 caractères max.'); return }
+    if (!trimmed) { setError('Project name is required.'); return }
+    if (trimmed.length > 100) { setError('100 characters max.'); return }
     setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed, emoji }),
+        body: JSON.stringify({ name: trimmed, emoji: null }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Erreur lors de la création.')
+        setError(data.error || 'Failed to create project.')
         setLoading(false)
         return
       }
@@ -63,7 +66,7 @@ export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string 
       router.push(`/projects/${data.project.id}`)
       router.refresh()
     } catch {
-      setError('Erreur réseau. Réessayez.')
+      setError('Network error. Please try again.')
       setLoading(false)
     }
   }
@@ -72,14 +75,25 @@ export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string 
     <>
       <button
         onClick={() => setOpen(true)}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'var(--accent)', color: '#fff',
-          borderRadius: 20, padding: '9px 18px',
-          fontSize: 12, fontWeight: 500, fontFamily: jakarta,
-          border: 'none', cursor: 'pointer',
-          marginTop: 8, flexShrink: 0,
-        }}
+        style={
+          variant === 'primary'
+            ? {
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'var(--accent)', color: '#fff',
+                borderRadius: 20, padding: '10px 20px',
+                fontSize: 13, fontWeight: 500, fontFamily: jakarta,
+                border: 'none', cursor: 'pointer',
+                flexShrink: 0,
+              }
+            : {
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'transparent', color: 'var(--text-primary)',
+                borderRadius: 20, padding: '9px 18px',
+                fontSize: 12, fontWeight: 500, fontFamily: jakarta,
+                border: '1px solid var(--border-md)', cursor: 'pointer',
+                flexShrink: 0,
+              }
+        }
       >
         <PlusIcon />
         {label}
@@ -104,41 +118,19 @@ export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string 
             fontFamily: jakarta,
           }}>
             <h2 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
-              Nouveau projet
+              New project
             </h2>
-
-            {/* Emoji picker */}
-            <div style={{ marginBottom: 14 }}>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 8px' }}>Icône</p>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {EMOJI_SUGGESTIONS.map(e => (
-                  <button
-                    key={e}
-                    onClick={() => setEmoji(e)}
-                    style={{
-                      fontSize: 20, width: 36, height: 36,
-                      borderRadius: 8, border: 'none', cursor: 'pointer',
-                      background: emoji === e ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                      outline: emoji === e ? '2px solid var(--accent)' : 'none',
-                      transition: 'background .1s',
-                    }}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Name input */}
             <div style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 6px' }}>Nom</p>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 6px' }}>Name</p>
               <input
                 ref={inputRef}
                 value={name}
                 onChange={e => { setName(e.target.value); setError('') }}
                 onKeyDown={e => { if (e.key === 'Enter' && !loading) handleCreate() }}
                 maxLength={100}
-                placeholder="Ex : Cuisine, PC Gaming, Déco chambre…"
+                placeholder="e.g. Kitchen, Gaming PC, Bedroom decor…"
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   padding: '9px 12px', borderRadius: 10, fontSize: 13,
@@ -165,7 +157,7 @@ export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string 
                   cursor: 'pointer', fontFamily: jakarta,
                 }}
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={handleCreate}
@@ -178,7 +170,7 @@ export function NewProjectButton({ label = 'Nouveau projet' }: { label?: string 
                   fontFamily: jakarta, transition: 'background .15s',
                 }}
               >
-                {loading ? 'Création…' : 'Créer'}
+                {loading ? 'Creating…' : 'Create'}
               </button>
             </div>
           </div>

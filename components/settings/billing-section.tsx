@@ -26,10 +26,10 @@ export function BillingSection({
 
   useEffect(() => {
     if (checkoutFlash === 'success') {
-      setBanner('Paiement reçu. Ton plan Complete sera actif dans quelques secondes.')
+      setBanner('Payment received. Your Complete plan will be active in a few seconds.')
       router.replace('/settings', { scroll: false })
     } else if (checkoutFlash === 'cancel') {
-      setBanner('Paiement annulé.')
+      setBanner('Payment cancelled.')
       router.replace('/settings', { scroll: false })
     }
   }, [checkoutFlash, router])
@@ -45,7 +45,7 @@ export function BillingSection({
       })
       const data = await r.json().catch(() => ({}))
       if (data.url) window.location.assign(data.url)
-      else setBanner(data.error || 'Impossible de démarrer le paiement.')
+      else setBanner(data.error || 'Unable to start checkout.')
     } finally {
       setLoading(null)
     }
@@ -57,7 +57,7 @@ export function BillingSection({
       const r = await fetch('/api/stripe/portal', { method: 'POST', credentials: 'same-origin' })
       const data = await r.json().catch(() => ({}))
       if (data.url) window.location.assign(data.url)
-      else setBanner(data.error || 'Portail indisponible.')
+      else setBanner(data.error || 'Portal unavailable.')
     } finally {
       setLoading(null)
     }
@@ -67,7 +67,7 @@ export function BillingSection({
 
   return (
     <div className="mt-4 rounded-xl bg-[#393E46] border border-[#393E46] p-5">
-      <h2 className="text-sm font-semibold text-white">Abonnement</h2>
+      <h2 className="text-sm font-semibold text-white">Subscription</h2>
 
       {banner && (
         <p className="mt-3 text-xs text-amber-200/90 border border-amber-500/25 rounded-lg px-3 py-2 bg-amber-500/10">
@@ -81,8 +81,8 @@ export function BillingSection({
             <span className="text-sm text-white capitalize">{paid ? 'Complete' : 'Free'}</span>
             <p className="text-xs text-[#888] mt-1 max-w-md">
               {paid
-                ? 'Messages IA, clips et projets selon le plan Complete. Gère le renouvellement ou l’annulation via Stripe.'
-                : `Free : ${PLAN_LIMITS.free.ai_messages_per_month} messages IA/mois, ${PLAN_LIMITS.free.clips_total} clips, ${PLAN_LIMITS.free.projects_total} projets. Complete : ${PLAN_LIMITS.complete.ai_messages_per_month} messages/mois, illimité clips & projets.`}
+                ? 'AI messages, clips, and projects per the Complete plan. Manage renewal or cancellation via Stripe.'
+                : `Free: ${PLAN_LIMITS.free.ai_messages_per_month} AI messages/month, ${PLAN_LIMITS.free.clips_total} clips, ${PLAN_LIMITS.free.projects_total} projects. Complete: ${PLAN_LIMITS.complete.ai_messages_per_month} messages/month, unlimited clips & projects.`}
             </p>
           </div>
         </div>
@@ -94,7 +94,7 @@ export function BillingSection({
               disabled={loading !== null}
               onClick={() => startCheckout('monthly')}
             >
-              {loading === 'checkout-m' ? 'Redirection…' : 'Passer au Complete — 12,90 €/mois'}
+              {loading === 'checkout-m' ? 'Redirecting…' : 'Upgrade to Complete — €12.90/month'}
             </Button>
             <Button
               variant="outline"
@@ -102,7 +102,7 @@ export function BillingSection({
               disabled={loading !== null}
               onClick={() => startCheckout('yearly')}
             >
-              {loading === 'checkout-y' ? 'Redirection…' : 'Annuel — 118,80 €/an'}
+              {loading === 'checkout-y' ? 'Redirecting…' : 'Yearly — €118.80/year'}
             </Button>
           </div>
         ) : stripeCustomerId ? (
@@ -112,11 +112,11 @@ export function BillingSection({
             disabled={loading !== null}
             onClick={openPortal}
           >
-            {loading === 'portal' ? 'Redirection…' : 'Gérer mon abonnement'}
+            {loading === 'portal' ? 'Redirecting…' : 'Manage subscription'}
           </Button>
         ) : (
           <p className="text-xs text-[#888]">
-            Abonnement actif — si tu dois gérer la facturation, contacte le support (client Stripe non lié au profil).
+            Active subscription — to manage billing, contact support (Stripe customer not linked to profile).
           </p>
         )}
       </div>

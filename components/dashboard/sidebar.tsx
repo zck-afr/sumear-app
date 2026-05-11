@@ -9,16 +9,17 @@ import { SumearLogoBadge } from '@/components/ui/sumear-logo-badge'
 import { useTheme } from '@/components/theme-provider'
 
 const navItems = [
-  { name: 'Tableau de bord', href: '/', icon: DashIcon },
-  { name: 'Projets', href: '/projects', icon: FolderIcon },
-  { name: 'Mes produits', href: '/clips', icon: ProductIcon },
-  { name: 'Historique', href: '/historique', icon: HistoryIcon },
+  { name: 'Dashboard', href: '/', icon: DashIcon },
+  { name: 'Products', href: '/clips', icon: ProductIcon },
+  { name: 'Projects', href: '/projects', icon: FolderIcon },
+  { name: 'Chat', href: '/chat', icon: ChatIcon },
 ]
 
-/** Même colonne centrée que la page d’accueil (max 860px). Exclut la fiche projet (contenu + chat 400px). */
+/** Pages where content fills full width (no max-width container). */
 function isDashboardMainFullWidth(pathname: string | null): boolean {
   if (!pathname) return false
-  return /^\/projects\/[^/]+$/.test(pathname)
+  if (/^\/projects\/[^/]+$/.test(pathname)) return true
+  return false
 }
 
 export function DashboardShell({
@@ -55,145 +56,182 @@ export function DashboardShell({
   }
 
   return (
-    <div className="flex" style={{ background: 'var(--ds-bg-page)' }}>
-
-      {/* ── Sidebar ── */}
-      <aside
-        className="hidden lg:flex w-[200px] shrink-0 flex-col sticky top-0"
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100dvh',
+        background: 'var(--ds-bg-page)',
+        overflow: 'hidden',
+        fontFamily: 'var(--font-plus-jakarta-sans), sans-serif',
+      }}
+    >
+      {/* ── Horizontal header — 3-column grid: logo | nav | user ── */}
+      <header
         style={{
+          height: 52,
+          flexShrink: 0,
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
+          alignItems: 'center',
+          padding: '0 18px',
           background: 'var(--ds-bg-sidebar)',
-          borderRight: '0.5px solid var(--ds-border-07)',
-          zoom: 1.265,
-          height: 'calc((100vh - 45px) / 1.265)',
-          justifyContent: 'space-between',
+          borderBottom: '0.5px solid var(--ds-border-07)',
         }}
       >
-        {/* Top group: logo + nav */}
-        <div>
-          {/* Logo */}
+        {/* Left: logo */}
+        <div style={{ justifySelf: 'start' }}>
           <Link
             href="/"
-            className="flex items-center gap-[10px] shrink-0"
-            style={{ padding: '18px 14px', marginBottom: 40 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
           >
             <SumearLogoBadge size={24} />
             <SumearWordmark size={19} />
           </Link>
-
-          {/* Nav items */}
-          <nav className="flex flex-col" style={{ padding: '0 14px', gap: 14 }}>
-            {navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== '/' && pathname.startsWith(item.href))
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-[10px] rounded-[12px] text-[14px] transition-colors ${
-                    isActive
-                      ? 'bg-[var(--ds-bg-card)] text-[var(--ds-text-primary)] font-medium'
-                      : 'text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]'
-                  }`}
-                  style={{ padding: '10px 12px' }}
-                >
-                  <item.icon active={isActive} />
-                  {item.name}
-                </Link>
-              )
-            })}
-          </nav>
         </div>
 
-        {/* Bottom: Paramètres only */}
-        <div style={{ padding: '14px 14px 20px' }}>
-          <Link
-            href="/settings"
-            className={`flex items-center gap-[10px] rounded-[12px] text-[14px] transition-colors ${
-              settingsActive
-                ? 'bg-[var(--ds-bg-card)] text-[var(--ds-text-primary)] font-medium'
-                : 'text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]'
-            }`}
-            style={{ padding: '10px 12px' }}
-          >
-            <SettingsIcon active={settingsActive} />
-            Paramètres
-          </Link>
-        </div>
-      </aside>
-
-      {/* ── Mobile top bar (below lg) ── */}
-      <div
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
-        style={{ background: 'var(--ds-bg-sidebar)', borderBottom: '0.5px solid var(--ds-border-07)' }}
-      >
-        <Link href="/" className="flex items-center gap-2">
-          <div
-            className="flex items-center justify-center"
-            style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--ds-accent)' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 10 10" fill="none">
-              <path d="M5 0.8C3.07 0.8 1.5 2.37 1.5 4.3c0 1.18.59 2.22 1.49 2.86V8c0 .28.22.5.5.5h3.02a.5.5 0 00.5-.5V7.16C7.91 6.52 8.5 5.48 8.5 4.3 8.5 2.37 6.93.8 5 .8z" fill="white" />
-              <rect x="3.35" y="8.4" width="3.3" height=".8" rx=".4" fill="white" />
-            </svg>
-          </div>
-          <SumearWordmark size={17} />
-        </Link>
-        <nav className="flex items-center gap-1">
+        {/* Centre: nav */}
+        <nav style={{ justifySelf: 'center', display: 'flex', alignItems: 'center', gap: 144 }}>
           {navItems.map((item) => {
             const isActive =
-              pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href))
+              item.href === '/'
+                ? pathname === '/'
+                : pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
-                key={item.name}
+                key={item.href}
                 href={item.href}
-                className={`p-2 rounded-[10px] transition-colors ${
-                  isActive ? 'bg-[var(--ds-bg-card)] text-[var(--ds-text-primary)]' : 'text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 11px',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  fontSize: 13,
+                  fontWeight: isActive ? 500 : 400,
+                  color: isActive ? 'var(--ds-text-primary)' : 'var(--ds-text-secondary)',
+                  background: isActive ? 'var(--ds-bg-card)' : 'transparent',
+                  transition: 'background 150ms, color 150ms',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'var(--ds-bg-hover)'
+                    e.currentTarget.style.color = 'var(--ds-text-primary)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = 'var(--ds-text-secondary)'
+                  }
+                }}
               >
                 <item.icon active={isActive} />
+                {item.name}
               </Link>
             )
           })}
         </nav>
-      </div>
 
-      {/* ── Main content ── */}
-      <main
-        className="flex-1 min-w-0 lg:pt-0 pt-14"
-        style={{ background: 'var(--ds-bg-page)' }}
-      >
-        {/* Top-right: user name + logout */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 28px 0', zoom: 1.21 }}>
-          <div className="flex items-center" style={{ gap: 10 }}>
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="shrink-0 rounded-full object-cover" style={{ width: 28, height: 28 }} referrerPolicy="no-referrer" />
-            ) : (
-              <div className="flex items-center justify-center shrink-0 rounded-full" style={{ width: 28, height: 28, background: 'var(--ds-accent-light)', color: 'var(--ds-text-tag)', fontSize: 12, fontWeight: 500 }}>
-                {initials}
-              </div>
-            )}
-            <span style={{ fontSize: 13, color: 'var(--ds-text-secondary)', fontWeight: 500 }}>{firstName}</span>
-            <button
-              onClick={handleLogout}
-              className="shrink-0 transition-opacity hover:opacity-60"
-              style={{ color: 'var(--ds-text-muted)' }}
-              title="Déconnexion"
+        {/* Right: settings icon + avatar + name + logout */}
+        <div style={{ justifySelf: 'end', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link
+            href="/settings"
+            title="Settings"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '6px 8px',
+              borderRadius: 8,
+              color: settingsActive ? 'var(--ds-text-primary)' : 'var(--ds-text-secondary)',
+              background: settingsActive ? 'var(--ds-bg-card)' : 'transparent',
+              transition: 'background 150ms, color 150ms',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={(e) => {
+              if (!settingsActive) {
+                e.currentTarget.style.background = 'var(--ds-bg-hover)'
+                e.currentTarget.style.color = 'var(--ds-text-primary)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!settingsActive) {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--ds-text-secondary)'
+              }
+            }}
+          >
+            <SettingsIcon active={settingsActive} />
+          </Link>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                background: 'var(--ds-accent-light)',
+                color: 'var(--ds-text-tag)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                fontWeight: 500,
+                flexShrink: 0,
+              }}
             >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-              </svg>
-            </button>
-          </div>
+              {initials}
+            </div>
+          )}
+          <span style={{ fontSize: 13, color: 'var(--ds-text-secondary)', fontWeight: 500 }}>
+            {firstName}
+          </span>
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            className="shrink-0 transition-opacity hover:opacity-60"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--ds-text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              padding: 4,
+              borderRadius: 6,
+            }}
+          >
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+            </svg>
+          </button>
         </div>
+      </header>
 
+      {/* ── Scrollable main content ── */}
+      <main
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          background: 'var(--ds-bg-page)',
+        }}
+      >
         <div
           style={{
             paddingTop: 28,
             paddingLeft: 48,
             paddingRight: 40,
-            paddingBottom: 40,
+            paddingBottom: 80,
             zoom: 1.21,
           }}
         >
@@ -207,10 +245,10 @@ export function DashboardShell({
         </div>
       </main>
 
-      {/* ── Toggle — fixed bottom-right, above footer ── hidden on /settings (has its own toggle) */}
+      {/* ── Theme toggle — fixed bottom-right, hidden on /settings (has its own) ── */}
       <div
         onClick={toggleTheme}
-        title={theme === 'light' ? 'Mode sombre' : 'Mode clair'}
+        title={theme === 'light' ? 'Dark mode' : 'Light mode'}
         style={{
           position: 'fixed',
           bottom: 58,
@@ -263,7 +301,7 @@ export function DashboardShell({
         </div>
       </div>
 
-      {/* ── Footer — fixed, full width, above all content ── */}
+      {/* ── Footer — fixed, full width ── */}
       <footer
         className="flex items-center justify-between"
         style={{
@@ -293,8 +331,8 @@ export function DashboardShell({
         </span>
         <div className="flex items-center" style={{ gap: 24, pointerEvents: 'auto' }}>
           {[
-            { label: 'conditions générales', href: '/legal' },
-            { label: 'confidentialité', href: '/privacy' },
+            { label: 'terms', href: '/legal' },
+            { label: 'privacy', href: '/privacy' },
             { label: 'sumear.app', href: 'https://sumear.app' },
           ].map(({ label, href }) => (
             <Link
@@ -308,7 +346,6 @@ export function DashboardShell({
           ))}
         </div>
       </footer>
-
     </div>
   )
 }
@@ -326,10 +363,10 @@ function DashIcon({ active }: { active: boolean }) {
   )
 }
 
-function HistoryIcon({ active }: { active: boolean }) {
+function ChatIcon({ active }: { active: boolean }) {
   return (
     <svg className={`w-[18px] h-[18px] shrink-0 ${iconCls(active)}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
     </svg>
   )
 }
@@ -352,9 +389,19 @@ function FolderIcon({ active }: { active: boolean }) {
 
 function SettingsIcon({ active }: { active: boolean }) {
   return (
-    <svg className={`w-[18px] h-[18px] shrink-0 ${iconCls(active)}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <svg
+      className={`w-[15px] h-[15px] shrink-0 ${iconCls(active)}`}
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="8" cy="8" r="2"/>
+      <path d="M8 1v2M8 13v2M1 8h2M13 8h2"/>
     </svg>
   )
 }

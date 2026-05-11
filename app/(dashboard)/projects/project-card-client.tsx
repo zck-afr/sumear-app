@@ -2,8 +2,24 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 const jakarta = 'var(--font-plus-jakarta-sans), sans-serif'
+
+/** List order (0-based), cycles past index 4 — used when `card_banner_gradient` is not set in DB */
+const BANNER_GRADIENTS_BY_INDEX = [
+  'linear-gradient(135deg, #C8A882, #B8715A)', // 0 terracotta
+  'linear-gradient(135deg, #8AA89A, #5A8070)', // 1 sauge
+  'linear-gradient(135deg, #9A8AAA, #6A5A7A)', // 2 prune
+  'linear-gradient(135deg, #B8A870, #8A7840)', // 3 ocre
+  'linear-gradient(135deg, #A89098, #786070)', // 4 rose gris
+]
+
+function bannerBackground(listIndex: number, stored: string | null | undefined): string {
+  const t = typeof stored === 'string' ? stored.trim() : ''
+  if (t) return t
+  return BANNER_GRADIENTS_BY_INDEX[listIndex % BANNER_GRADIENTS_BY_INDEX.length]
+}
 
 export type Clip = {
   id: string
@@ -23,16 +39,16 @@ export type Project = {
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
 }
 
 function fmtCurrency(n: number) {
-  return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'EUR' })
 }
 
 function TrashIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(42,30,24,.4)" strokeWidth="1.5" strokeLinecap="round">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
       <polyline points="2 4 14 4" />
       <path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
       <path d="M6 7v5M10 7v5" />
@@ -43,28 +59,41 @@ function TrashIcon() {
 
 interface Props {
   project: Project
+  /** 0-based index in the projects list (order from server) */
+  listIndex: number
   deleteAction: (id: string) => Promise<void>
 }
 
-export function ProjectCard({ project, deleteAction }: Props) {
+export function ProjectCard({ project, listIndex, deleteAction }: Props) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const { confirmModal, showConfirm } = useConfirm()
 
   const clips = project.clips ?? []
   const spent = clips.reduce((sum, c) => sum + (c.price ?? 0), 0)
   const shown = clips.slice(0, 4)
   const extra = clips.length - shown.length
+  const bannerGradient = bannerBackground(listIndex, project.card_banner_gradient)
 
   async function handleDelete(e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
-    if (!confirm(`Supprimer le projet "${project.name}" ?`)) return
-    setDeleting(true)
-    await deleteAction(project.id)
+    showConfirm({
+      title: 'Delete project',
+      message: "This project and all its settings will be permanently deleted. Your saved products will not be affected.",
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeleting(true)
+        await deleteAction(project.id)
+      },
+    })
   }
 
   return (
+    <>
+    {confirmModal}
     <div
       className="proj-card"
       onClick={() => !deleting && router.push(`/projects/${project.id}`)}
@@ -85,18 +114,18 @@ export function ProjectCard({ project, deleteAction }: Props) {
       {/* Banner */}
       <div
         style={{
-          height: 72,
+          minHeight: 108,
           position: 'relative',
-          background: 'linear-gradient(135deg, #C8A882 0%, #B8715A 100%)',
+          background: bannerGradient,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          flexDirection: 'column',
+          alignItems: 'stretch',
         }}
       >
         {/* Delete button — shown on card hover */}
         <button
           onClick={handleDelete}
-          title="Supprimer le projet"
+          title="Delete project"
           className="proj-delete-btn"
           style={{
             position: 'absolute',
@@ -104,7 +133,7 @@ export function ProjectCard({ project, deleteAction }: Props) {
             zIndex: 3,
             width: 26, height: 26,
             borderRadius: 8,
-            background: hovered ? 'rgba(255,255,255,.7)' : 'transparent',
+            background: hovered ? 'rgba(42, 30, 24, 0.34)' : 'transparent',
             border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer',
@@ -115,31 +144,34 @@ export function ProjectCard({ project, deleteAction }: Props) {
           <TrashIcon />
         </button>
 
-        <span
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            fontFamily: "'Varela Round', sans-serif",
-            fontSize: 18,
-            fontWeight: 400,
-            color: 'rgba(255,255,255,.88)',
-            letterSpacing: '0.3px',
-            textAlign: 'center',
-            textTransform: 'none',
-            maxWidth: '80%',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {project.name}
-        </span>
+        {/* Name zone — grows to fill space above thumbnails */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: shown.length > 0 ? '10px 40px 6px 14px' : '10px 40px 10px 14px',
+          minHeight: shown.length > 0 ? 64 : 108,
+        }}>
+          <span
+            style={{
+              fontFamily: "'Varela Round', sans-serif",
+              fontSize: 18,
+              fontWeight: 400,
+              color: 'rgba(255,255,255,.88)',
+              letterSpacing: '0.3px',
+              textAlign: 'center',
+              wordBreak: 'break-word',
+              maxWidth: '100%',
+            }}
+          >
+            {project.name}
+          </span>
+        </div>
 
         {/* Thumbnail strip */}
         {shown.length > 0 && (
-          <div style={{ position: 'absolute', bottom: 8, right: 10, display: 'flex', zIndex: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', paddingRight: 10, paddingBottom: 8, flexShrink: 0 }}>
             {shown.map((clip, i) => (
               <div key={clip.id} style={{
                 width: 28, height: 28, borderRadius: 6,
@@ -185,19 +217,20 @@ export function ProjectCard({ project, deleteAction }: Props) {
             fontSize: 9, padding: '2px 8px', borderRadius: 20,
             background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontFamily: jakarta,
           }}>
-            {clips.length} produit{clips.length !== 1 ? 's' : ''}
+            {clips.length} product{clips.length !== 1 ? 's' : ''}
           </span>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 7 }}>
           <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: jakarta }}>
-            {spent > 0 ? `${fmtCurrency(spent)} engagés` : `${clips.length} produit${clips.length !== 1 ? 's' : ''}`}
+            {spent > 0 ? `${fmtCurrency(spent)} total` : `${clips.length} product${clips.length !== 1 ? 's' : ''}`}
           </span>
           <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: jakarta }}>
-            Créé {fmtDate(project.created_at)}
+            Created {fmtDate(project.created_at)}
           </span>
         </div>
       </div>
     </div>
+    </>
   )
 }

@@ -44,9 +44,9 @@ function EmbedChat() {
       if (!resolvedRef.current) {
         setStatus('error')
         setErrorMessage(
-          'Session non re\u00e7ue. V\u00e9rifiez : 1) Vous \u00eates connect\u00e9 sur https://sumear.app (ou localhost:3000 en dev) avec Google. ' +
-          '2) Dans F12 \u2192 Application \u2192 Cookies, un cookie sb-...-auth-token doit exister pour ce domaine. ' +
-          '3) Fermez le panneau, actualisez la page produit puis cliquez \u00e0 nouveau sur l\u2019extension \u2192 Analyser.'
+          'Session not received. Check: 1) You are signed in to https://sumear.app (or localhost:3000 in dev) with Google. ' +
+          '2) In F12 \u2192 Application \u2192 Cookies, an sb-...-auth-token cookie must exist for this domain. ' +
+          '3) Close the panel, refresh the product page, then click the extension again \u2192 Analyze.'
         )
       }
     }, 15000)
@@ -57,7 +57,7 @@ function EmbedChat() {
         if (!access_token) {
           resolvedRef.current = true
           setStatus('error')
-          setErrorMessage('Connexion requise. Ouvrez Sumear (https://sumear.app) dans un onglet et connectez-vous avec Google.')
+          setErrorMessage('Sign-in required. Open Sumear (https://sumear.app) in a tab and sign in with Google.')
           return
         }
         resolvedRef.current = true
@@ -83,14 +83,14 @@ function EmbedChat() {
             setStatus('ready')
           } catch (err: unknown) {
             setStatus('error')
-            const msg = err instanceof Error ? err.message : 'Erreur lors de la connexion.'
-            setErrorMessage(msg.includes('refresh_token') ? msg : `Erreur lors de la connexion. ${msg}`)
+            const msg = err instanceof Error ? err.message : 'Sign-in error.'
+            setErrorMessage(msg.includes('refresh_token') ? msg : `Sign-in error. ${msg}`)
           }
         })()
       } else if (event.data?.type === 'sumear-auth-error') {
         resolvedRef.current = true
         setStatus('error')
-        setErrorMessage(event.data?.error || 'Session non disponible. Connectez-vous sur Sumear d\'abord.')
+        setErrorMessage(event.data?.error || 'Session unavailable. Sign in to Sumear first.')
       }
     }
 
@@ -108,9 +108,18 @@ function EmbedChat() {
     }
   }, [mounted])
 
-  const embedBg = '#F9F4F0'
+  const embedBg = 'var(--ds-bg-page)'
   const spinner = (
-    <div className="w-6 h-6 border-2 border-[#EDE8DF] border-t-[#B8715A] rounded-full animate-spin" />
+    <div
+      className="animate-spin"
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: '50%',
+        border: '2px solid var(--ds-bg-image)',
+        borderTopColor: 'var(--ds-accent)',
+      }}
+    />
   )
 
   if (!mounted || status === 'loading') {
@@ -124,10 +133,10 @@ function EmbedChat() {
   if (status === 'error') {
     return (
       <div style={{ height: '100%', minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, background: embedBg, padding: 24 }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(184,113,90,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B8715A', fontSize: 20 }}>!</div>
-        <p style={{ fontSize: 13, color: '#7A6258', textAlign: 'center', lineHeight: 1.5 }}>{errorMessage}</p>
-        <p style={{ fontSize: 11, color: '#B09890', textAlign: 'center' }}>
-          Ouvrez <a href="/login" target="_blank" rel="noopener noreferrer" style={{ color: '#B8715A', textDecoration: 'underline' }}>Sumear</a> dans un onglet, connectez-vous avec Google, puis r&eacute;essayez.
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--ds-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ds-accent)', fontSize: 20 }}>!</div>
+        <p style={{ fontSize: 13, color: 'var(--ds-text-secondary)', textAlign: 'center', lineHeight: 1.5 }}>{errorMessage}</p>
+        <p style={{ fontSize: 11, color: 'var(--ds-text-muted)', textAlign: 'center' }}>
+          Open <a href="/login" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ds-accent)', textDecoration: 'underline' }}>Sumear</a> in a tab, sign in with Google, then try again.
         </p>
       </div>
     )
@@ -137,7 +146,7 @@ function EmbedChat() {
   if (!isInIframe) {
     return (
       <div style={{ minHeight: '100vh', background: embedBg, padding: 32 }}>
-        <p style={{ fontSize: 13, color: '#7A6258' }}>Cette page est pr&eacute;vue pour l&apos;extension. Ouvrez une page produit puis cliquez sur l&apos;extension &rarr; Analyser.</p>
+        <p style={{ fontSize: 13, color: 'var(--ds-text-secondary)' }}>This page is meant for the extension. Open a product page, then click the extension &rarr; Analyze.</p>
       </div>
     )
   }

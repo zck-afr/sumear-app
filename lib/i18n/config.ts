@@ -4,7 +4,7 @@
 // Strategy: /fr/... and /en/... sub-routes (SEO-friendly)
 // ─────────────────────────────────────────────
 
-export const defaultLocale = 'fr' as const;
+export const defaultLocale = 'en' as const;
 export const locales = ['fr', 'en'] as const;
 export type Locale = (typeof locales)[number];
 

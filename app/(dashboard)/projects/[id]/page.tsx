@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { projectProductsBriefFingerprint } from '@/lib/utils/project-brief-fingerprint'
+import { projectBriefCacheFingerprint } from '@/lib/utils/project-brief-fingerprint'
 import { ProjectDetailClient } from './project-detail-client'
 import type { Clip } from '@/components/chat/chat-content'
 
@@ -12,9 +12,10 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Use * so we don’t fail if optional columns (e.g. user_budget) are missing before migration runs
   const { data: project, error: projErr } = await supabase
     .from('projects')
-    .select('id, name, emoji, created_at, ai_brief, ai_brief_fingerprint')
+    .select('*')
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -44,14 +45,20 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
   const currency = products.find(p => p.currency)?.currency || 'EUR'
   const totalSpent = products.reduce((sum, p) => sum + (p.price ?? 0), 0)
-  const createdAt = new Date(project.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const createdAt = new Date(project.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
 
-  const productsFingerprint = projectProductsBriefFingerprint(products)
+  const rawBudget = (project as { user_budget?: unknown }).user_budget
+  const userBudget =
+    rawBudget != null && Number.isFinite(Number(rawBudget))
+      ? Number(rawBudget)
+      : null
 
-  // Serve cached brief if fingerprint matches; otherwise client will fetch in background
+  const briefFingerprint = projectBriefCacheFingerprint(products, userBudget)
+
+  // Serve cached brief if fingerprint matches (products + user budget)
   const cachedBrief =
     project.ai_brief &&
-    project.ai_brief_fingerprint === productsFingerprint &&
+    project.ai_brief_fingerprint === briefFingerprint &&
     String(project.ai_brief).trim() !== ''
       ? (project.ai_brief as string)
       : ''
@@ -61,8 +68,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       project={project}
       products={products}
       aiBrief={cachedBrief}
-      aiBriefStale={products.length > 0 && !cachedBrief}
-      productsFingerprint={productsFingerprint}
+      briefFingerprint={briefFingerprint}
+      initialUserBudget={userBudget}
       createdAt={createdAt}
       totalSpent={totalSpent}
       currency={currency}

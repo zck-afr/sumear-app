@@ -21,6 +21,7 @@ export async function GET() {
       .select(`
         id,
         title,
+        session_type,
         created_at,
         updated_at,
         chat_messages(content, role, created_at),
@@ -61,6 +62,7 @@ export async function GET() {
       return {
         id:            s.id,
         title:         s.title,
+        session_type:  (s as { session_type?: string | null }).session_type ?? 'clip_based',
         created_at:    s.created_at,
         updated_at:    s.updated_at,
         first_message: firstUserMsg?.content ?? null,

@@ -12,16 +12,6 @@ function isPaidPlan(plan: string): boolean {
   return plan === 'complete' || plan === 'pro'
 }
 
-function getLocaleFromCookie(): 'fr' | 'en' {
-  if (typeof document === 'undefined') return 'fr'
-  const match = document.cookie.match(/sumear-locale=(fr|en)/)
-  return match ? (match[1] as 'fr' | 'en') : 'fr'
-}
-
-function setLocaleCookie(lang: 'fr' | 'en') {
-  document.cookie = `sumear-locale=${lang}; path=/; max-age=31536000; SameSite=Lax`
-}
-
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const cardStyle: React.CSSProperties = {
@@ -93,7 +83,6 @@ export function SettingsClient({
 
   const [loading, setLoading] = useState<'checkout-m' | 'portal' | null>(null)
   const [banner, setBanner] = useState<string | null>(null)
-  const [lang, setLang] = useState<'fr' | 'en'>('fr')
 
   // Name editing
   const [editingName, setEditingName] = useState(false)
@@ -105,15 +94,11 @@ export function SettingsClient({
   const expiring = paid && cancelAtPeriodEnd
 
   useEffect(() => {
-    setLang(getLocaleFromCookie())
-  }, [])
-
-  useEffect(() => {
     if (checkoutFlash === 'success') {
-      setBanner('Paiement reçu. Votre plan Complete sera actif dans quelques secondes.')
+      setBanner('Payment received. Your Complete plan will be active in a few seconds.')
       router.replace('/settings', { scroll: false })
     } else if (checkoutFlash === 'cancel') {
-      setBanner('Paiement annulé.')
+      setBanner('Payment cancelled.')
       router.replace('/settings', { scroll: false })
     }
   }, [checkoutFlash, router])
@@ -131,7 +116,7 @@ export function SettingsClient({
       })
       const data = await r.json().catch(() => ({}))
       if (data.url) window.location.assign(data.url)
-      else setBanner(data.error || 'Impossible de démarrer le paiement.')
+      else setBanner(data.error || 'Unable to start checkout.')
     } finally {
       setLoading(null)
     }
@@ -146,7 +131,7 @@ export function SettingsClient({
       })
       const data = await r.json().catch(() => ({}))
       if (data.url) window.location.assign(data.url)
-      else setBanner(data.error || 'Portail indisponible.')
+      else setBanner(data.error || 'Portal unavailable.')
     } finally {
       setLoading(null)
     }
@@ -156,12 +141,6 @@ export function SettingsClient({
 
   function toggleTheme() {
     setTheme(isDark ? 'light' : 'dark')
-  }
-
-  function switchLang(next: 'fr' | 'en') {
-    if (next === lang) return
-    setLang(next)
-    setLocaleCookie(next)
   }
 
   function startEditName() {
@@ -187,7 +166,7 @@ export function SettingsClient({
         data: { full_name: trimmed },
       })
       if (error) {
-        setBanner('Impossible de mettre à jour le nom.')
+        setBanner('Unable to update name.')
       } else {
         router.refresh()
         setEditingName(false)
@@ -204,10 +183,10 @@ export function SettingsClient({
 
   const isLoading = loading !== null
   const subscriptionBtnLabel = isLoading
-    ? 'Redirection…'
+    ? 'Redirecting…'
     : paid
-      ? 'Gérer mon abonnement →'
-      : 'Passer au plan Complet →'
+      ? 'Manage subscription →'
+      : 'Upgrade to Complete →'
 
   return (
     <div style={{ fontFamily: jakarta }}>
@@ -218,39 +197,16 @@ export function SettingsClient({
           style={{
             fontFamily: fraunces,
             fontWeight: 300,
-            fontStyle: 'italic',
-            fontSize: 34,
+            fontStyle: 'normal',
+            fontSize: 36,
             lineHeight: 1.1,
             letterSpacing: '-0.4px',
             color: 'var(--text-primary)',
             margin: 0,
           }}
         >
-          Paramètres,
+          Settings
         </h1>
-        <div
-          style={{
-            fontFamily: fraunces,
-            fontWeight: 300,
-            fontStyle: 'normal',
-            fontSize: 20,
-            color: 'var(--accent)',
-            marginTop: 2,
-          }}
-        >
-          votre compte 👤
-        </div>
-        <p
-          style={{
-            fontSize: 12,
-            color: 'var(--text-muted)',
-            marginTop: 6,
-            marginBottom: 0,
-            fontFamily: jakarta,
-          }}
-        >
-          Gérez votre compte, abonnement et préférences.
-        </p>
       </div>
 
       {/* ── Flash banner ── */}
@@ -272,18 +228,18 @@ export function SettingsClient({
       )}
 
       {/* ══════════════════════════════════════════
-          SECTION 1 — Compte
+          SECTION 1 — Account
       ══════════════════════════════════════════ */}
-      <div style={sectionLabel}>Compte</div>
+      <div style={sectionLabel}>Account</div>
       <div style={cardStyle}>
         {/* Email row */}
         <div style={rowStyle}>
           <span style={rowLabelStyle}>Email</span>
           <span style={rowValueStyle}>{email}</span>
         </div>
-        {/* Nom row — editable, no border-bottom on last */}
+        {/* Name row — editable, no border-bottom on last */}
         <div style={{ ...rowStyle, borderBottom: 'none', gap: 12 }}>
-          <span style={rowLabelStyle}>Nom</span>
+          <span style={rowLabelStyle}>Name</span>
           {editingName ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
@@ -325,7 +281,7 @@ export function SettingsClient({
                   opacity: nameSaving ? 0.6 : 1,
                 }}
               >
-                {nameSaving ? '…' : 'Enregistrer'}
+                {nameSaving ? '…' : 'Save'}
               </button>
               <button
                 onClick={cancelEditName}
@@ -342,7 +298,7 @@ export function SettingsClient({
                   fontFamily: jakarta,
                 }}
               >
-                Annuler
+                Cancel
               </button>
             </div>
           ) : (
@@ -350,7 +306,7 @@ export function SettingsClient({
               <span style={rowValueStyle}>{nameValue}</span>
               <button
                 onClick={startEditName}
-                title="Modifier le nom"
+                title="Edit name"
                 style={{
                   background: 'none',
                   border: 'none',
@@ -373,9 +329,9 @@ export function SettingsClient({
       </div>
 
       {/* ══════════════════════════════════════════
-          SECTION 2 — Abonnement
+          SECTION 2 — Subscription
       ══════════════════════════════════════════ */}
-      <div style={{ ...sectionLabel, marginTop: 20 }}>Abonnement</div>
+      <div style={{ ...sectionLabel, marginTop: 20 }}>Subscription</div>
       <div style={cardStyle}>
         {/* Card header: plan name + badge */}
         <div
@@ -394,7 +350,7 @@ export function SettingsClient({
               fontFamily: jakarta,
             }}
           >
-            {paid ? 'Plan Complet' : 'Plan Free'}
+            {paid ? 'Complete plan' : 'Free plan'}
           </span>
           {paid && !expiring ? (
             <span
@@ -408,7 +364,7 @@ export function SettingsClient({
                 fontFamily: jakarta,
               }}
             >
-              ✦ Complet
+              ✦ Complete
             </span>
           ) : expiring ? (
             <span
@@ -424,8 +380,8 @@ export function SettingsClient({
               }}
             >
               {subscriptionPeriodEnd
-                ? `Complet jusqu'au ${new Date(subscriptionPeriodEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}`
-                : 'Non renouvelé'}
+                ? `Complete until ${new Date(subscriptionPeriodEnd).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })}`
+                : 'Not renewing'}
             </span>
           ) : (
             <span
@@ -449,11 +405,11 @@ export function SettingsClient({
             <>
               <div style={rowStyle}>
                 <span style={rowLabelStyle}>
-                  {expiring ? 'Accès jusqu\'au' : 'Renouvellement'}
+                  {expiring ? 'Access until' : 'Renews on'}
                 </span>
                 <span style={{ ...rowValueStyle, color: expiring ? '#B8715A' : undefined }}>
                   {subscriptionPeriodEnd
-                    ? new Date(subscriptionPeriodEnd).toLocaleDateString('fr-FR', {
+                    ? new Date(subscriptionPeriodEnd).toLocaleDateString('en-US', {
                         day: '2-digit',
                         month: 'long',
                         year: 'numeric',
@@ -462,14 +418,14 @@ export function SettingsClient({
                 </span>
               </div>
             <div style={{ ...rowStyle, borderBottom: 'none' }}>
-              <span style={rowLabelStyle}>Facturation</span>
-              <span style={rowValueStyle}>12,90 € / mois</span>
+              <span style={rowLabelStyle}>Billing</span>
+              <span style={rowValueStyle}>€12.90 / month</span>
             </div>
           </>
         ) : (
           <div style={{ ...rowStyle, borderBottom: 'none' }}>
-            <span style={rowLabelStyle}>Facturation</span>
-            <span style={rowValueStyle}>Gratuit</span>
+            <span style={rowLabelStyle}>Billing</span>
+            <span style={rowValueStyle}>Free</span>
           </div>
         )}
 
@@ -497,22 +453,21 @@ export function SettingsClient({
       </div>
 
       {/* ══════════════════════════════════════════
-          SECTION 3 — Préférences
+          SECTION 3 — Preferences
       ══════════════════════════════════════════ */}
-      <div style={{ ...sectionLabel, marginTop: 20 }}>Préférences</div>
+      <div style={{ ...sectionLabel, marginTop: 20 }}>Preferences</div>
       <div style={cardStyle}>
-        {/* Row 1 — Thème */}
+        {/* Row 1 — Theme */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '10px 0',
-            borderBottom: '0.5px solid var(--border)',
           }}
         >
           <div>
-            <div style={rowLabelStyle}>Thème</div>
+            <div style={rowLabelStyle}>Theme</div>
             <div
               style={{
                 fontSize: 10,
@@ -521,7 +476,7 @@ export function SettingsClient({
                 fontFamily: jakarta,
               }}
             >
-              Clair ou sombre
+              Light or dark
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -579,49 +534,13 @@ export function SettingsClient({
           </div>
         </div>
 
-        {/* Row 2 — Langue */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '10px 0',
-          }}
-        >
-          <span style={rowLabelStyle}>Langue</span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {(['fr', 'en'] as const).map((l) => (
-              <button
-                key={l}
-                onClick={() => switchLang(l)}
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  border: 'none',
-                  cursor: 'pointer',
-                  background:
-                    lang === l ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                  color:
-                    lang === l ? 'var(--tag-text)' : 'var(--text-secondary)',
-                  fontFamily: jakarta,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ══════════════════════════════════════════
-          SECTION 4 — Zone sensible
+          SECTION 4 — Danger zone
       ══════════════════════════════════════════ */}
       <div style={{ ...sectionLabel, marginTop: 20, color: '#C07070' }}>
-        Zone sensible
+        Danger zone
       </div>
       <div
         style={{
@@ -640,7 +559,7 @@ export function SettingsClient({
             fontFamily: jakarta,
           }}
         >
-          Supprimer mon compte
+          Delete my account
         </div>
         <p
           style={{
@@ -651,8 +570,8 @@ export function SettingsClient({
             fontFamily: jakarta,
           }}
         >
-          Cette action est irréversible. Toutes vos données (clips, projets,
-          historique) seront définitivement supprimées.
+          This action is irreversible. All your data (clips, projects,
+          history) will be permanently deleted.
         </p>
         <button
           type="button"
@@ -668,7 +587,7 @@ export function SettingsClient({
             fontFamily: jakarta,
           }}
         >
-          Supprimer mon compte
+          Delete my account
         </button>
       </div>
 

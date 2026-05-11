@@ -1,6 +1,6 @@
 # Sumear — Plan de lancement pré-launch
 # ⚠️ Ce fichier complète ARCHITECTURE.md. Donne les DEUX en contexte à Cursor.
-# Généré le 29 mars 2026 — Mis à jour le 13 avril 2026
+# Généré le 29 mars 2026 — Mis à jour le 15 avril 2026
 
 
 ## Décisions prises depuis ARCHITECTURE.md
@@ -347,30 +347,102 @@ output_tokens, cache_creation_input_tokens, cache_read_input_tokens, cost_usd, c
 
 ---
 
+### TÂCHE 14 — Page de connexion i18n
+**Statut : ✅ FAIT (15 avril 2026)**
+
+**Fichiers créés :**
+- `app/[lang]/login/page.tsx` — Server Component, layout deux colonnes : panneau brand gauche (logo, headline, tagline, footer) + panneau formulaire droit (titre, sous-titre, bouton Google, liens légaux, retour accueil)
+- `app/[lang]/login/google-button.tsx` — Client Component (`'use client'`) : `signInWithOAuth` via singleton `createClient()`, gestion état `loading`, détection `?error` dans l'URL via `useSearchParams`, enveloppé dans `Suspense`
+- `lib/i18n/dictionaries/fr.ts` + `en.ts` — bloc `login` ajouté (title, subtitle, cta, legal\*, back, headlineL1/L2, tagline, error)
+
+**Fichiers modifiés :**
+- `proxy.ts` — `/login` ajouté dans `MARKETING_PATHS_EXACT` pour la redirection i18n
+- `app/(dashboard)/layout.tsx` — redirect `/${locale}/login` au lieu de `/login` ; ajout `resolveLocale()` (cookie → Accept-Language → `fr`)
+- `lib/supabase/proxy.ts` — nouveau helper `isLoginPath()` qui reconnaît `/login` ET `/${locale}/login` — corrige la boucle de redirect infinie
+- `app/(auth)/login/page.tsx` — **supprimé** (remplacé par la page i18n)
+
+**Points de sécurité :**
+- Aucune logique auth dans root `layout.tsx`
+- `redirectTo: window.location.origin + '/callback'` (jamais une valeur hardcodée)
+- Hover bouton Google via CSS (`:hover:not(:disabled)`) plutôt que JS
+
+---
+
+### TÂCHE 15 — Déduplication des clips
+**Statut : ✅ FAIT (15 avril 2026)**
+
+**Fichiers créés :**
+- `lib/utils/url.ts` — `extractDomain(url)` + `normalizeProductUrl(url)` (strip fragments, tracking params courants `utm_*` / `ref` / `tag` / etc., tri des params restants, strip trailing slash hors root)
+- `database/clips_updated_at_migration.sql` — ajout colonne `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()` avec backfill `= created_at`
+
+**Fichiers modifiés :**
+- `app/api/clips/route.ts` (POST) :
+  - Avant le check quota : requête candidates `same user_id + source_domain + project_id`, normalise les URLs → si match, UPDATE + retour 200 `{ code: "CLIP_UPDATED" }`
+  - Si aucun doublon : check quota → INSERT → retour 201 `{ code: "CLIP_CREATED" }`
+  - `clipId` renvoyé dans les deux cas
+- `src/utils/api.ts` (extension) — `ClipResponse.code?: 'CLIP_CREATED' | 'CLIP_UPDATED'`
+- `src/background/service-worker.ts` — propagation du champ `code` + `clipId` vers le popup
+- `src/popup/popup.ts` — feedback `"Mis à jour ✓ Ouverture…"` vs `"Ouverture…"` (btn analyse) ; `"Mis à jour ✓"` avec classe `.btn-info` vs `"Ajouté ✓"` (btn projet)
+- `src/popup/popup.css` — classe `.btn.btn-info` (fond `#C8A882`) pour distinguer visuellement un re-clip
+
+**Garanties :**
+- Le quota n'est PAS consommé sur un UPDATE (guard quota court-circuité)
+- La dédup compare sur `normalizeProductUrl` → `?utm_source=email` du même produit ne crée pas de doublon
+- Le contexte (même `project_id` ou `null`) est inclus dans la comparaison — un produit dans deux projets distincts génère bien deux clips séparés
+
+---
+
+### TÂCHE 16 — Section "Analyser des produits" dans le popup
+**Statut : ✅ FAIT (15 avril 2026)**
+
+**Fichiers modifiés :**
+- `src/popup/popup.html` — nouvelle section entre "analyser ce produit" et "projets" : header-row (label + trigger dropdown avec compteur + chevron), dropdown panel, boutons-row ("Ajouter" + "Ouvrir le chat")
+- `src/popup/popup.css` — bloc `.compare-*` autonome ajouté en fin de fichier (couleurs hex en dur, aucune dépendance aux classes `.btn` / `.section-*` existantes)
+- `src/popup/popup.ts` — module compare auto-contenu ajouté après `init()` :
+  - `chrome.storage.local["sumear-compare-list"]` : `[{ url, name, price, image_url, clip_id }]`
+  - `loadCompareList()` / `saveCompareList()` / `renderCompareSection()`
+  - `handleCompareAdd()` : POST `/api/clips` via `chrome.runtime.sendMessage({ action: 'clip' })` → `clip_id` récupéré ; dédup locale (même URL ou même `clip_id` retourné par le serveur) → flash `"Ajouté ✓"` sans doublon
+  - `handleCompareRemove(idx)` : suppression + sauvegarde
+  - `handleCompareChat()` : `openSplitView` avec tableau `clipIds` (même mécanisme que "Ouvrir le chat" existant)
+  - `MutationObserver` sur `state-ready` pour re-render quand `init()` a résolu `currentData`
+  - Max 5 produits ; sous-label `"5/5"` + `is-disabled` sur "Ajouter" ; dropdown ouvert par défaut si liste non vide
+
+**Garanties :**
+- Aucune modification des sections "analyser ce produit" ni "projets"
+- La dédup `/api/clips` (tâche 15) fait que re-cliquer un produit déjà dans la liste compare ne consomme pas de quota
+- Tous les éléments interactifs sont des `div` (pas de `button`) pour éviter les surcharges de style de l'extension
+
+---
+
 ## Ordre d'exécution recommandé
 
 ```
 ✅ Semaine 1 :
   TÂCHE 1  — Quotas (config + logique)              ✅
-  TÂCHE 2  — Brancher quotas sur les API routes      ⬜ TODO
+  TÂCHE 2  — Brancher quotas sur les API routes      ✅
   TÂCHE 5  — Stripe (checkout + webhook + UI)        ✅
 
 ✅ Semaine 2 :
   TÂCHE 6  — UI de feedback quota                    ✅ (décision : supprimé du dashboard)
   TÂCHE 4  — Prompt caching                          ✅
-  TÂCHE 3  — Debounce/cache Brief IA                 ⬜ TODO
+  TÂCHE 3  — Debounce/cache Brief IA                 ✅
   TÂCHE 7  — Landing page + pricing                  ✅
 
 ✅ Semaine 3 :
   TÂCHE 8  — Pages légales                           ✅ (+ CGU renforcées)
   TÂCHE 13 — Audit de sécurité                       ✅ (app + extension)
+  TÂCHE 11 — Rate limiting                           ✅
+  TÂCHE 12 — Logging tokens                          ✅
+  TÂCHE 14 — Page de connexion i18n                  ✅
+  TÂCHE 15 — Déduplication clips                     ✅
+  TÂCHE 16 — Section "Analyser des produits" popup   ✅
+
+⬜ Semaine 4 :
   TÂCHE 9  — Fiche Chrome Web Store + soumission     ⬜ TODO
   TÂCHE 10 — Onboarding minimal                      ⬜ TODO
-  TÂCHE 11 — Rate limiting                           ✅ FAIT
-  TÂCHE 12 — Logging tokens                          ✅ FAIT
 
 → Tâches restantes : 9, 10
-→ Soumission Chrome Web Store dès tâches 9 prête
+→ Soumission Chrome Web Store dès tâche 9 prête
 → Review Google : 1-3 jours
 → Launch public après approval
 ```
@@ -400,3 +472,8 @@ output_tokens, cache_creation_input_tokens, cache_read_input_tokens, cost_usd, c
 - `middleware.ts` supprimé (conflit Next.js 16) ; `proxy.ts` seul middleware
 - CGU renforcées (FR + EN) : RGPD, prompt injection, partage compte, responsabilité extraction
 - Extension : 7 fixes sécurité (cleanText DOMParser, popup textContent, chatUrl/embedUrl validation, origin checks, JWT expiry, 401 cleanup)
+
+**v2.3 (15 avril 2026) :**
+- Page de connexion i18n (`app/[lang]/login/`) avec layout deux colonnes, `GoogleButton` client, fix boucle redirect (`isLoginPath()` dans `proxy.ts`)
+- Déduplication clips : `lib/utils/url.ts` (`normalizeProductUrl`), migration `updated_at`, `/api/clips` POST retourne 200/201 + `CLIP_UPDATED`/`CLIP_CREATED`, feedback popup extension
+- Section "Analyser des produits" popup : compare list `chrome.storage.local`, max 5 produits, `handleCompareAdd`/`handleCompareRemove`/`handleCompareChat`, styles `.compare-*` autonomes (hex en dur)

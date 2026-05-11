@@ -6,9 +6,9 @@ interface GreetingProps {
 
 function getGreeting(): string {
   const h = new Date().getHours()
-  if (h >= 5 && h < 12) return 'Belle journée,'
-  if (h >= 12 && h < 18) return 'Bel après-midi,'
-  return 'Belle soirée,'
+  if (h >= 5 && h < 12) return 'Good morning,'
+  if (h >= 12 && h < 18) return 'Good afternoon,'
+  return 'Good evening,'
 }
 
 export function Greeting({ firstName }: GreetingProps) {
@@ -18,7 +18,7 @@ export function Greeting({ firstName }: GreetingProps) {
         style={{
           fontFamily: 'var(--font-fraunces), Georgia, serif',
           fontWeight: 300,
-          fontStyle: 'italic',
+          fontStyle: 'normal',
           fontSize: 26,
           color: 'var(--text-primary)',
           letterSpacing: '-0.2px',

@@ -149,6 +149,22 @@ const en = {
       title: 'Legal Notice',
     },
   },
+
+  login: {
+    title: 'Sign in',
+    subtitle: 'Access your sumear space',
+    cta: 'Continue with Google',
+    legal: 'By continuing, you agree to our',
+    legalCgu: 'terms of use',
+    legalAnd: 'and our',
+    legalPrivacy: 'privacy policy',
+    back: '← Back to home',
+    headlineL1: 'Shop smarter,',
+    headlineL2: 'decide faster.',
+    tagline:
+      'Analyse any product in real time, right on the page.',
+    error: 'Sign-in error. Please try again.',
+  },
 } as const;
 
 export default en as unknown as Dictionary;

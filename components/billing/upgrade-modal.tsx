@@ -48,13 +48,13 @@ export function UpgradeModal({
   onOpenChange: (open: boolean) => void
   title?: string
   description?: string
-  /** Iframe embed : rediriger la fenêtre parente vers Stripe */
+  /** Iframe embed: redirect the parent window to Stripe */
   embedTopRedirect?: boolean
 }) {
   const [loading, setLoading] = useState<BillingInterval | null>(null)
 
-  const defaultTitle = 'Passe au Complete'
-  const defaultDescription = `Tu as atteint une limite du plan Free (${PLAN_LIMITS.free.ai_messages_per_month} messages IA / mois, ${PLAN_LIMITS.free.clips_total} clips, ${PLAN_LIMITS.free.projects_total} projets). Avec Complete : ${PLAN_LIMITS.complete.ai_messages_per_month} messages IA / mois, clips et projets illimités, modèle Sonnet.`
+  const defaultTitle = 'Upgrade to Complete'
+  const defaultDescription = `You reached a Free plan limit (${PLAN_LIMITS.free.ai_messages_per_month} AI messages / month, ${PLAN_LIMITS.free.clips_total} clips, ${PLAN_LIMITS.free.projects_total} projects). With Complete: ${PLAN_LIMITS.complete.ai_messages_per_month} AI messages / month, unlimited clips and projects, Sonnet model.`
 
   async function onCheckout(billing: BillingInterval) {
     setLoading(billing)
@@ -81,7 +81,7 @@ export function UpgradeModal({
             disabled={loading !== null}
             onClick={() => onCheckout('monthly')}
           >
-            {loading === 'monthly' ? 'Redirection…' : 'Complete — 12,90 € / mois'}
+            {loading === 'monthly' ? 'Redirecting…' : 'Complete — €12.90 / month'}
           </Button>
           <Button
             variant="outline"
@@ -89,7 +89,7 @@ export function UpgradeModal({
             disabled={loading !== null}
             onClick={() => onCheckout('yearly')}
           >
-            {loading === 'yearly' ? 'Redirection…' : 'Complete — 118,80 € / an (9,90 € / mois)'}
+            {loading === 'yearly' ? 'Redirecting…' : 'Complete — €118.80 / year (€9.90 / month)'}
           </Button>
         </div>
         <DialogFooter className="sm:justify-start">
@@ -98,7 +98,7 @@ export function UpgradeModal({
             className="text-xs text-[#888] hover:text-[#aaa] underline-offset-2 hover:underline"
             onClick={() => onOpenChange(false)}
           >
-            Plus tard
+            Later
           </button>
         </DialogFooter>
       </DialogContent>

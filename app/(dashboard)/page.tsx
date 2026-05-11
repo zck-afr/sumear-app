@@ -8,6 +8,7 @@ export default async function DashboardHome() {
   const { data: { user } } = await supabase.auth.getUser()
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'
 
+
   const now = new Date()
   const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
@@ -78,24 +79,24 @@ export default async function DashboardHome() {
       <div className="flex flex-wrap" style={{ gap: 40, marginTop: 24 }}>
 
         <div style={statCard}>
-          <p style={statLabel}>Produits analysés</p>
+          <p style={statLabel}>Products analyzed</p>
           <p style={{ fontFamily: displayFont, fontSize: 36, fontWeight: 400, color: 'var(--ds-text-primary)', marginTop: 8, lineHeight: 1 }}>
             {clipsCount ?? 0}
           </p>
           {(weeklyClipsCount ?? 0) > 0 && (
             <p style={{ fontSize: 12, color: 'var(--ds-green)', fontWeight: 500, marginTop: 8 }}>
-              +{weeklyClipsCount} cette semaine
+              +{weeklyClipsCount} this week
             </p>
           )}
         </div>
 
         <div style={statCard}>
-          <p style={statLabel}>Projets actifs</p>
+          <p style={statLabel}>Active projects</p>
           <p style={{ fontFamily: displayFont, fontSize: 36, fontWeight: 400, color: 'var(--ds-text-primary)', marginTop: 8, lineHeight: 1 }}>
             {projects?.length ?? 0}
           </p>
           <p style={{ fontSize: 12, color: 'var(--ds-text-muted)', marginTop: 8 }}>
-            en cours
+            ongoing
           </p>
         </div>
 
@@ -105,17 +106,17 @@ export default async function DashboardHome() {
             {chatSessionsCount ?? 0}
           </p>
           <p style={{ fontSize: 12, color: 'var(--ds-text-muted)', marginTop: 8 }}>
-            depuis le début
+            all time
           </p>
         </div>
       </div>
 
-      {/* ── Récemment analysés ── */}
+      {/* ── Recently analyzed ── */}
       <div style={{ marginTop: 52 }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 14 }}>
-          <p style={sectionLabel}>Récemment analysés</p>
+          <p style={sectionLabel}>Recently analyzed</p>
           <Link href="/clips" style={{ fontSize: 13, color: 'var(--ds-accent)', textDecoration: 'none' }} className="hover:opacity-70 transition-opacity">
-            Voir tout
+            View all
           </Link>
         </div>
 
@@ -125,7 +126,7 @@ export default async function DashboardHome() {
             style={{ background: 'var(--ds-bg-card)', border: '0.5px dashed var(--ds-border-20)', borderRadius: 14, padding: 34 }}
           >
             <p style={{ fontSize: 14, color: 'var(--ds-text-muted)', textAlign: 'center' }}>
-              Aucun produit encore. Utilisez l&apos;extension Chrome pour analyser des produits.
+              No products yet. Use the Chrome extension to analyze products.
             </p>
           </div>
         ) : (
@@ -133,12 +134,12 @@ export default async function DashboardHome() {
         )}
       </div>
 
-      {/* ── Projets en cours ── */}
+      {/* ── Ongoing projects ── */}
       <div style={{ marginTop: 52 }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 14 }}>
-          <p style={sectionLabel}>Projets en cours</p>
+          <p style={sectionLabel}>Ongoing projects</p>
           <Link href="/projects" style={{ fontSize: 13, color: 'var(--ds-accent)', textDecoration: 'none' }} className="hover:opacity-70 transition-opacity">
-            Voir tout
+            View all
           </Link>
         </div>
 
@@ -148,11 +149,11 @@ export default async function DashboardHome() {
             style={{ background: 'var(--ds-bg-card)', border: '0.5px dashed var(--ds-border-20)', borderRadius: 14, padding: 34 }}
           >
             <p style={{ fontSize: 14, color: 'var(--ds-text-muted)', textAlign: 'center' }}>
-              Aucun projet. Créez-en un pour organiser vos produits.
+              No projects yet. Create one to organize your products.
             </p>
           </div>
         ) : (
-          <div className="flex overflow-x-auto scrollbar-hide" style={{ gap: 14, paddingBottom: 4 }}>
+          <div className="flex overflow-x-auto scrollbar-hide" style={{ gap: 28, paddingBottom: 4 }}>
             {projects.map((project) => (
               <Link
                 key={project.id}
@@ -198,7 +199,7 @@ export default async function DashboardHome() {
                     padding: '3px 10px',
                   }}
                 >
-                  en cours
+                  ongoing
                 </span>
               </Link>
             ))}

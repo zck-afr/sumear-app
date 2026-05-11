@@ -22,3 +22,15 @@ export function projectProductsBriefFingerprint(products: Clip[]): string {
     })
   return createHash('sha256').update(rows.join('\n'), 'utf8').digest('hex')
 }
+
+/**
+ * Empreinte cache brief = produits + budget utilisateur (si le budget change, régénérer).
+ */
+export function projectBriefCacheFingerprint(products: Clip[], userBudget: number | null): string {
+  const base = projectProductsBriefFingerprint(products)
+  const b =
+    userBudget != null && Number.isFinite(userBudget) && userBudget >= 0
+      ? userBudget.toFixed(2)
+      : ''
+  return createHash('sha256').update(`${base}|budget:${b}`, 'utf8').digest('hex')
+}

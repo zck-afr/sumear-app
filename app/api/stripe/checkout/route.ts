@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     if (profile?.plan === 'complete' && profile?.stripe_subscription_id) {
       return NextResponse.json(
-        { error: 'Vous avez déjà un abonnement actif. Gérez-le depuis les paramètres.', code: 'ALREADY_SUBSCRIBED' },
+        { error: 'You already have an active subscription. Manage it from settings.', code: 'ALREADY_SUBSCRIBED' },
         { status: 409 }
       )
     }

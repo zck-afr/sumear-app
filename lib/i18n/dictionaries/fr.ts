@@ -147,6 +147,22 @@ const fr = {
       title: 'Mentions Légales',
     },
   },
+
+  login: {
+    title: 'Connexion',
+    subtitle: 'Accédez à votre espace sumear',
+    cta: 'Continuer avec Google',
+    legal: 'En continuant, vous acceptez nos',
+    legalCgu: 'conditions d\'utilisation',
+    legalAnd: 'et notre',
+    legalPrivacy: 'politique de confidentialité',
+    back: '← Retour à l\'accueil',
+    headlineL1: 'Achetez mieux,',
+    headlineL2: 'décidez vite.',
+    tagline:
+      'Analysez n\'importe quel produit en temps réel, directement sur la page.',
+    error: 'Erreur de connexion. Veuillez réessayer.',
+  },
 } as const;
 
 export default fr;

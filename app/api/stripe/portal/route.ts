@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const customerId = profile?.stripe_customer_id
     if (!customerId) {
       return NextResponse.json(
-        { error: 'Aucun client Stripe associé. Souscris d’abord au Complete.', code: 'NO_CUSTOMER' },
+        { error: 'No Stripe customer linked. Subscribe to Complete first.', code: 'NO_CUSTOMER' },
         { status: 400 }
       )
     }

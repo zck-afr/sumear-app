@@ -1,5 +1,5 @@
 # Sumear — Architecture Reference Document
-# Version: MVP v2.1 | Last updated: 2026-04-12
+# Version: MVP v2.4 | Last updated: 2026-04-20
 # ⚠️ CE FICHIER EST LA SOURCE DE VÉRITÉ DU PROJET.
 # à donner en contexte à Cursor/Claude à chaque session de code.
 
@@ -45,7 +45,6 @@ Extension Chrome      : Manifest V3, vanilla TypeScript, Vite bundler
 sumear-app/
 ├── app/
 │   ├── (auth)/
-│   │   ├── login/page.tsx              # Page de connexion Google
 │   │   └── callback/route.ts           # Route handler OAuth callback
 │   ├── (dashboard)/
 │   │   ├── layout.tsx                  # Layout dashboard (DashboardShell, auth guard)
@@ -61,6 +60,9 @@ sumear-app/
 │   │   └── settings/page.tsx           # Server — auth + profil → délègue à SettingsClient
 │   ├── [lang]/
 │   │   ├── layout.tsx                  # Validation locale (fr/en), pass-through
+│   │   ├── login/
+│   │   │   ├── page.tsx                # Page de connexion i18n (two-column layout, Server Component)
+│   │   │   └── google-button.tsx       # Client Component — signInWithOAuth + loading + error display
 │   │   └── (marketing)/
 │   │       ├── layout.tsx              # Layout marketing : MarketingHeader + main + MarketingFooter
 │   │       ├── page.tsx                # Landing page : HeroSection + FeaturesSection + PricingSection (dark) + FaqSection
@@ -134,8 +136,16 @@ sumear-app/
 │   ├── llm/
 │   │   ├── provider.ts                 # Abstraction LLM: callLLM() + streamLLM() (Anthropic)
 │   │   └── (provider.ts seul — prompts.ts supprimé avec compare)
+│   ├── types/
+│   │   └── ebay.ts                     # Types partagés eBay (EbayData, EbaySellerData, EbaySellerFeedback, EbayAuctionData, EbayDetailedRatings)
 │   └── utils/
-│       └── quota.ts                    # checkQuota() + incrementUsage() par plan
+│       ├── quota.ts                    # checkQuota() + incrementUsage() par plan
+│       ├── url.ts                      # extractDomain() + normalizeProductUrl() (strip tracking params, sort, trailing slash)
+│       ├── sanitize.ts                 # sanitizeProductData() + detectSuspiciousMessage() (prompt injection)
+│       ├── rate-limit.ts               # Sliding-window in-memory rate limiter
+│       ├── ai-log.ts                   # logAiCall() fire-and-forget (table ai_logs)
+│       ├── validate-ebay.ts            # Validation + clamp du payload ebay_data reçu par /api/clips
+│       └── format-ebay-context.ts      # coerceEbayData + formatEbayContext + EBAY_SYSTEM_PROMPT_ADDENDUM (prompt LLM)
 ├── content/                            # Contenu markdown des pages légales (servi via get-legal-content.ts)
 │   ├── fr/cgu.md, privacy.md, mentions.md
 │   └── en/cgu.md, privacy.md, mentions.md
@@ -144,6 +154,11 @@ sumear-app/
 │   ├── chat_history.sql               # Tables chat (sessions, messages, …)
 │   ├── stripe_profiles_migration.sql  # Colonnes Stripe + trigger anti-escalade plan
 │   ├── quota_ai_messages_migration.sql, check_quota_migration.sql, project_ai_brief_cache_migration.sql
+│   ├── ai_logs_migration.sql          # Table ai_logs (monitoring tokens)
+│   ├── security_logs_migration.sql    # Table security_logs (prompt injection monitoring)
+│   ├── clips_updated_at_migration.sql # Colonne updated_at sur clips (déduplication)
+│   ├── clips_ebay_data_migration.sql  # Colonnes ebay_data (JSONB) + ebay_data_refreshed_at + index partiel + fonction TTL cleanup_ebay_seller_feedback()
+│   ├── user_budget_migration.sql      # Colonne user_budget sur projects (budget cible injecté dans le brief IA)
 │   └── sumear_schema.mermaid          # Diagramme ERD
 ├── ARCHITECTURE.md                     # CE FICHIER
 └── package.json
@@ -155,6 +170,8 @@ sumear-app/
 L'auth guard est dans `app/(dashboard)/layout.tsx`. Séparer les deux layouts
 a causé une boucle de redirection infinie quand le root layout contenait la logique dashboard.
 
+**⚠️ Routing login :** La page de connexion est à `app/[lang]/login/` (i18n). L'auth guard redirige vers `/${locale}/login`. Le middleware `lib/supabase/proxy.ts` utilise `isLoginPath()` qui reconnaît `/login` ET `/${locale}/login` — sans ça une boucle de redirect se déclenche.
+
 ### Repo 2 : `sumear-extension` (Chrome Extension)
 
 ```
@@ -165,21 +182,23 @@ sumear-extension/
 │   ├── background/
 │   │   └── service-worker.ts           # Service worker (comm avec le dashboard, auth relay)
 │   ├── content/
-│   │   ├── extractor.ts                # Orchestrateur 4 niveaux (merge + confidence)
+│   │   ├── extractor.ts                # Orchestrateur 4 niveaux (merge + confidence) ; appelle extractEbay() en enrichissement si isEbayDomain(hostname)
 │   │   ├── extract-jsonld.ts           # Level 1: JSON-LD schema.org/Product
 │   │   ├── extract-amazon.ts           # Level 2: Sélecteurs Amazon (multi-locale)
 │   │   ├── extract-microdata.ts        # Level 3: Microdata itemprop/itemscope
 │   │   ├── extract-generic.ts          # Level 4: CSS fallback générique
+│   │   ├── extract-ebay.ts             # Enrichissement eBay (async) : condition, listing_type, seller, feedback, auction, description iframe
+│   │   ├── types-ebay.ts               # Types eBay partagés avec sumear-app/lib/types/ebay.ts (mirroir strict)
 │   │   ├── content-script.ts           # Injection split-view (iframe chat)
 │   │   ├── sync-auth.ts                # Synchronisation auth Supabase
-│   │   ├── types.ts                    # Interfaces TypeScript (ProductData, etc.)
+│   │   ├── types.ts                    # Interfaces TypeScript (ProductData, etc. — ebay_data optionnel)
 │   │   └── utils.ts                    # Parsers prix/rating/reviews
 │   ├── popup/
-│   │   ├── popup.html                  # Structure popup (3 sections)
-│   │   ├── popup.ts                    # Logique popup (clip + projets)
-│   │   └── popup.css                   # Styles popup
+│   │   ├── popup.html                  # Structure popup (4 sections : analyser ce produit / analyser des produits / projets)
+│   │   ├── popup.ts                    # Logique popup (clip + compare list + projets). renderRatingOrSellerBadge() : sur eBay, remplace la note produit par un badge vendeur "{positive_feedback_percent}% positive ({items_sold} sales)" ; tint vert ≥98 %, rouge <90 %, neutre sinon. textContent-only (anti-XSS).
+│   │   └── popup.css                   # Styles popup (+ classes .compare-* autonomes hex ; .seller-badge + variantes --success / --warning)
 │   └── utils/
-│       ├── api.ts                      # Appels vers sumear.app/api/*
+│       ├── api.ts                      # Appels vers sumear.app/api/* ; ClipResponse.code ('CLIP_CREATED'|'CLIP_UPDATED')
 │       └── auth.ts                     # Gestion du token auth (cookies Supabase multi-origin)
 ├── package.json
 ├── tsconfig.json
@@ -196,14 +215,15 @@ sumear-extension/
 | `profiles` | Utilisateurs (extension de auth.users) | `plan` (enum BDD `free`/`pro`/`complete` — app : Free vs Complete), `stripe_customer_id`, `stripe_subscription_id` ; trigger `profiles_protect_billing_fields` (mise à jour plan/Stripe réservée au JWT `service_role`) |
 | `api_keys` | Clés BYOK chiffrées | `UNIQUE(user_id, provider)` |
 | `projects` | Dossiers d'achat | `emoji`, `position` pour le tri |
-| `clips` | Produits capturés | `project_id` nullable, `raw_jsonld`, `extracted_specs` |
+| `clips` | Produits capturés | `project_id` nullable, `raw_jsonld`, `extracted_specs`, `updated_at` (déduplication — migration `clips_updated_at_migration.sql`), `ebay_data` JSONB + `ebay_data_refreshed_at` (NULL sauf pour les fiches eBay — migration `clips_ebay_data_migration.sql`) |
 | `comparisons` | **(legacy — supprimé du code, table conservée en DB)** | `result_matrix`, `result_analysis` |
 | `comparison_clips` | **(legacy — supprimé du code, table conservée en DB)** | `PRIMARY KEY(comparison_id, clip_id)` |
 | `usage` | Compteurs mensuels | `UNIQUE(user_id, year, month)` |
 | `chat_sessions` | Sessions de chat IA | `user_id`, `title` |
 | `chat_session_clips` | Liaison N:N sessions↔clips | `PRIMARY KEY(session_id, clip_id)` |
 | `chat_messages` | Messages d'une session | `role` (user/assistant), `content` |
-| `ai_logs` | ⬜ TODO — Logs d'appels LLM (monitoring) | `model`, `input_tokens`, `output_tokens`, `cache_read_tokens` |
+| `ai_logs` | Logs d'appels LLM (monitoring) | `model`, `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, `cost_usd` |
+| `security_logs` | Logs de messages suspects (prompt injection monitoring) | `user_id`, `message` (tronqué 500 chars), `triggers` (json), `ip`, `created_at` — consultables via `GET /api/admin/suspicious` |
 
 **Note :** Les tables `comparisons` et `comparison_clips` sont legacy. Le code applicatif (routes, composants, prompts) a été supprimé — seules les tables DB restent pour l'historique.
 
@@ -212,6 +232,7 @@ sumear-extension/
 ### Fonctions Supabase clés
 - `increment_usage()` : upsert atomique des compteurs mensuels (`clips_count`, `ai_messages_count`, tokens/coût)
 - `check_quota(p_user_id)` : agrégat JSON aligné sur `lib/config/plans.ts` (clips/projets en COUNT, comparaisons + IA sur le mois courant). **Non appelée par l’app** aujourd’hui — l’enforcement passe par `checkQuota()` en TS. Exécuter `database/check_quota_migration.sql` sur les BDD existantes pour remplacer l’ancienne version (comparaisons seules, limites obsolètes).
+- `cleanup_ebay_seller_feedback()` : `SECURITY DEFINER`, `search_path = public`. Vide l'array `seller_feedback` des clips eBay dont `ebay_data_refreshed_at` date de plus de 30 jours (TTL). Supabase n'a pas de cron natif — à câbler via `pg_cron` ou edge function schedulée pour tourner quotidiennement.
 
 
 ## 5. Système d'Extraction (Extension Chrome)
@@ -249,6 +270,51 @@ Dernier recours : h1[class*="product-title"], og:title, og:image, etc.
 ```
 Couverture validée : Fnac ⚠️ (fragile)
 
+**Enrichissement eBay (additif, async)**
+```
+Détection : isEbayDomain(hostname) → /^(?:.*\.)?ebay\.[a-z.]+$/i
+```
+eBay expose déjà un JSON-LD Product (Niveau 1 remonte name/brand/price/images/model/mpn),
+donc `extractEbay()` n'écrase RIEN de la cascade — il ajoute un champ `ebay_data`
+à côté. Appelé depuis `extractor.ts` après le merge, dans un `try/catch` qui retombe
+sur `null` en cas d'échec. Chaque champ est extrait dans son propre `try/catch`
+pour ne jamais crasher l'extraction complète.
+
+Champs remplis :
+- `listing_type` (`buy_it_now | auction | both`) — détection via CTA "Place bid" / "Buy It Now" (multi-locale : FR/EN/ES)
+- `condition` (string clamp 100 chars)
+- `auction_data` (seulement si `listing_type ∈ {auction, both}`) — current_bid, bid_count, time_left, reserve_met (parsé depuis `.x-price-primary`, `[data-testid="x-bid-count"]`, `.x-end-time`, `.x-reserve-met`)
+- `seller` (4 sections DOM agrégées) :
+  - `.x-sellercard-atf` → `feedback_score` (shape `(705)`)
+  - `.x-store-information` → `name`, `positive_feedback_percent`, `items_sold`, `member_since` (icône `#icon-calendar-16`), `response_time` (icône `#icon-clock-16` ou 2ᵉ ligne fallback)
+  - `.fdbk-detail-list__title` → `feedback_count` (shape `Seller feedback (96)`)
+  - `.fdbk-seller-rating__detailed-list` → `detailed_ratings` : `accurate_description`, `reasonable_shipping_cost`, `shipping_speed`, `communication` (floats 0–5)
+- `seller_feedback` (max 8) — extraits de `.fdbk-detail-list__cards > li.fdbk-container` : `comment`, `username` (déjà pseudonymisé par eBay), `date`, `verified_purchase`, `item_name`. La page rend uniquement l'onglet "positif" par défaut → `rating: 'positive'` baked-in (hypothèse documentée dans le code)
+- `seller_description` — iframe cross-origin (`iframe#desc_ifr` / `src*="ebaydesc.com"`). Fetch délégué au service worker (voir §5.1).
+
+Couverture validée : ebay.com (Buy It Now + auction). Multi-locales partiellement couvertes via regex label fallback (FR/ES présentes, DE/IT silencieusement dégradées à `null`).
+
+#### 5.1 Proxy iframe description eBay (service worker)
+
+`chrome.runtime.onMessage` handler `fetchEbayDescription` dans `sumear-extension/src/background/service-worker.ts` :
+
+- **Whitelist hôte stricte** : `itm.ebaydesc.com`, `vi.vipr.ebaydesc.com` uniquement (rejet `Domain not allowed` sinon).
+- **HTTPS obligatoire** (rejet `HTTPS required`).
+- `credentials: 'omit'` → aucune identité utilisateur leakée vers eBay.
+- Timeout 5 s (`AbortController`).
+- Cap réponse 50 KB streaming (queue de `reader.read()`, on annule dès dépassement).
+- Parse côté content script via `DOMParser` + `textContent` (pas d'innerHTML) après strip des `script,style,noscript,iframe,link`. Clamp 3000 chars.
+
+Sécurité de la surface d'attaque : `externally_connectable` n'est PAS déclaré dans le manifest, donc seuls les content scripts / popup / service worker de l'extension peuvent déclencher ce handler. Aucune page web tierce ne peut proxy des requêtes arbitraires via l'extension.
+
+Permissions manifest ajoutées :
+```json
+"host_permissions": [
+  "https://itm.ebaydesc.com/*",
+  "https://vi.vipr.ebaydesc.com/*"
+]
+```
+
 ### Données envoyées au backend (POST /api/clips)
 ```typescript
 interface ClipPayload {
@@ -273,6 +339,10 @@ interface ClipPayload {
     date: string | null;
     helpful_count: number | null;
   }>;
+  // eBay-only (null partout ailleurs). Validé + clampé par lib/utils/validate-ebay.ts
+  // avant persistance dans clips.ebay_data (JSONB). Si listing_type absent ou
+  // invalide côté backend → rejet 400 INVALID_EBAY_DATA.
+  ebay_data?: EbayData | null;
 }
 ```
 
@@ -297,6 +367,20 @@ Le cœur intelligent de Sumear est un **chat conversationnel contextualisé** :
 | **Dashboard page** | Navigation vers `/chat` | Aucune prop spéciale |
 | **Project split-view** | "Ouvrir le chat" sur page projet | `initialClips`, `onClose`, `topbarLabel`, `noZoom` |
 
+### Auto-scroll intelligent (v2.4)
+
+Les trois layouts partagent un seul `scrollContainerRef` (un seul est monté à la fois) et un flag `shouldAutoScrollRef` :
+
+- `onScroll` mesure la distance au bas. Seuil 60 px : au-delà, l'auto-scroll se met en pause pour laisser l'utilisateur lire librement pendant que l'IA rédige en streaming.
+- Dès que l'utilisateur redescend près du bas, le flag se réarme tout seul.
+- Un nouveau message de rôle `user` force le scroll + ré-arme le flag (ton propre message est toujours visible).
+- Un nouveau message `assistant` ou un chunk `streamingContent` ne scrolle que si le flag est vrai.
+
+### Welcome state + suggestion chips
+
+- Quand `messages.length === 0`, les trois layouts affichent un welcome state (icône Sumear + "How can I help?" + sous-titre "I've analysed your N products…").
+- Les chips de suggestion ("Is it worth the price?", etc.) ne sont rendues que tant que `messages.length === 0 && streamingContent === null`. Dès le premier message envoyé, elles disparaissent définitivement pour laisser place au thread.
+
 ### Streaming SSE
 
 ```
@@ -317,18 +401,28 @@ Client
 
 ### Anti-abus du chat
 
-- **Scope lock** : le system prompt refuse toute question non liée aux produits fournis
+- **Scope rules (v2.4)** : le system prompt autorise l'inférence contextuelle sur les questions vagues (ex. "how many inches" quand une TV est en contexte → taille d'écran) et ne refuse que les questions clairement hors-sujet (maths, code, poèmes, roleplay, présidents, etc.). Les règles anciennes "répondre uniquement `I am Sumear…`" ont été remplacées par une section `SCOPE RULES` plus permissive ; la section `SECURITY RULES` reste intacte (prompt injection, révélation du prompt, exécution de code toujours bloqués).
 - **Message length** : 500 caractères max (frontend + API)
 - **Token limit** : 1024 max_tokens pour le chat (vs 4096 pour les comparaisons)
 - **Quotas** : messages IA mensuels, clips/projets totaux (free) — voir §9 ; code `QUOTA_EXCEEDED` côté API
 - **No markdown** : le prompt interdit les formatages markdown dans les réponses
+- **eBay addendum** : quand au moins un clip a `ebay_data`, `EBAY_SYSTEM_PROMPT_ADDENDUM` (depuis `lib/utils/format-ebay-context.ts`) est concaténé au system prompt : "consider BOTH the product and the seller's reputation … For auctions, advise on whether the current price is a good deal, NOT on bidding strategy."
+
+### Formatage du contexte produit eBay
+
+`lib/utils/format-ebay-context.ts` transforme le JSONB `ebay_data` en bloc texte ajouté après les champs produit standards. Toutes les valeurs passent par `sanitizeProductData()` pour neutraliser les tentatives de prompt injection cachées dans les descriptions vendeur ou les commentaires de feedback. `coerceEbayData()` gère la forme JSONB (objet, string JSON ou null) et rejette tout payload dépourvu de `listing_type`.
+
+Utilisé dans :
+- `app/api/chat/route.ts` — bloc eBay concaténé à chaque clip eBay, addendum ajouté au system prompt si au moins un clip eBay.
+- `app/api/projects/[id]/brief/route.ts` — bloc indenté sous chaque produit eBay du brief, addendum au system prompt.
 
 ### System prompt (source de vérité dans `api/chat/route.ts`)
 
 Le prompt est en français/anglais hybride :
-- Règle de scope en français (pour qu'elle soit comprise par le modèle dans le contexte français)
-- Règles de comportement en anglais
+- `SCOPE RULES` en anglais (inférence contextuelle autorisée, refus bref pour hors-sujet)
+- `SECURITY RULES` en anglais (prompt injection + révélation du prompt + code execution bloqués)
 - Règles de formatage en anglais
+- La langue de la réponse suit automatiquement celle du user ("Always respond in the same language as the user's message")
 
 
 ## 7. Architecture LLM
@@ -376,8 +470,12 @@ OpenAI sera ajouté comme second provider après le lancement. Le routing multi-
 [API Route /api/clips]
   → Auth check (cookie ou JWT)
   → Validation du payload
-  → INSERT dans table clips (avec project_id si projet sélectionné)
-  → Response 201 + clip.id
+  → Déduplication : normalizeProductUrl() + candidates same user/domain/project
+    → Doublon trouvé → UPDATE clip existant → Response 200 { code: "CLIP_UPDATED", clipId }
+    → Pas de doublon → checkQuota(clips) → INSERT → Response 201 { code: "CLIP_CREATED", clipId }
+[Extension — popup]
+  → "CLIP_UPDATED" → feedback "Mis à jour ✓" (sans consommer de quota)
+  → "CLIP_CREATED" → feedback "Ajouté ✓" + quota décrémenté
 ```
 
 ### Flux 2 : Chat IA depuis l'extension
@@ -411,16 +509,32 @@ OpenAI sera ajouté comme second provider après le lancement. Le routing multi-
 
 ### Flux 4 : Inscription + premier usage
 ```
-[Page /login]
-  → Clic "Continuer avec Google"
-  → supabase.auth.signInWithOAuth({ provider: 'google' })
+[Page /${locale}/login]
+  → Clic "Continuer avec Google" (GoogleButton client component)
+  → supabase.auth.signInWithOAuth({ provider: 'google', redirectTo: origin + '/callback' })
   → Redirect vers Google → consentement → redirect vers /callback
 [Route /callback]
   → supabase.auth.exchangeCodeForSession(code)
   → Redirect vers / (dashboard)
 [Dashboard layout]
-  → supabase.auth.getUser() → redirect si pas connecté
+  → supabase.auth.getUser() → redirect /${locale}/login si pas connecté
   → DashboardShell affiche sidebar + header + footer + toggle thème
+```
+
+### Flux 6 : Compare list (section "Analyser des produits" du popup)
+```
+[Extension — popup, section "Analyser des produits"]
+  → Lecture de chrome.storage.local["sumear-compare-list"] au démarrage
+  → "Ajouter" :
+    → POST /api/clips (action 'clip' via service-worker)
+    → Dédup locale (url ou clip_id déjà présent) → flash "Ajouté ✓" sans doublon
+    → Sinon : push { url, name, price, image_url, clip_id } + save storage + re-render
+  → "Retirer" (poubelle) : splice + save storage + re-render
+  → "Ouvrir le chat" :
+    → openSplitView avec tableau clipIds (toutes les clip_id de la liste)
+    → Même mécanisme que le bouton existant — le chat reçoit N produits en contexte
+  → Max 5 produits ; "Ajouter" désactivé à 5 (sous-label "5/5")
+  → Dropdown ouvert par défaut si liste non vide
 ```
 
 ### Flux 5 : Upgrade vers un plan payant (implémenté)
@@ -532,17 +646,24 @@ Un script inline dans `app/layout.tsx` lit le thème depuis `localStorage` et ap
 - ⚠️ Le root layout (app/layout.tsx) ne doit JAMAIS contenir de logique d'auth
 - L'extension récupère le token via cookies Supabase multi-origin + service worker relay
 
-### ✅ Audit de sécurité (complété 12 avril 2026)
+### ✅ Prompt injection defense (complété 13 avril 2026)
+- `lib/utils/sanitize.ts` : `sanitizeProductData()` (strip patterns LLM dans les données produit) + `detectSuspiciousMessage()` (détection patterns injection dans les messages utilisateur, retourne `{ isSuspicious, triggers }`)
+- `app/api/chat/route.ts` : `sanitizeProductData()` appliqué sur chaque champ textuel des clips avant injection dans le system prompt ; `detectSuspiciousMessage()` appelé après auth check, log dans `security_logs` si suspect (le message n'est pas bloqué — le system prompt renforcé le gère)
+- Table `security_logs` : `user_id`, `message`, `triggers`, `ip`, `created_at` — migration `database/security_logs_migration.sql`
+- `GET /api/admin/suspicious` : 50 derniers logs, protégé par `ADMIN_USER_ID` env var
+
+### ✅ Audit de sécurité (complété 12 avril 2026, mis à jour 20 avril 2026 pour l'extraction eBay)
 
 **App (3 tiers) :**
 - Tier 1 (critique) : Stripe webhooks vérifient le statut réel de la subscription avant mise à jour profil ; checkout bloque les doubles souscriptions (409) ; portal/checkout ne leakent plus `e.message` ; stream SSE timeout 60s ; `maxTokens` clampé au max du modèle
-- Tier 2 (élevé) : Input validation sur `/api/clips` (longueurs, types, max specs) ; ownership check `project_id` sur clips ; historique chat tronqué (2000 chars/msg) ; trigger DB `protect_billing_fields` étendu à `subscription_period_end`
+- Tier 2 (élevé) : Input validation sur `/api/clips` (longueurs, types, max specs) ; ownership check `project_id` sur clips ; historique chat tronqué (2000 chars/msg) ; trigger DB `protect_billing_fields` étendu à `subscription_period_end` ; `validateEbayData()` rejette tout payload eBay malformé (400 `INVALID_EBAY_DATA`), clamp strings, array `seller_feedback` tronqué à 8 items
 - Tier 3 (moyen) : Name update limité à 100 chars dans settings ; `proxy.ts` est le seul middleware (Next.js 16, pas de `middleware.ts`)
 
 **Extension (3 axes) :**
 - Auth & Token : JWT `exp` vérifié avant chaque appel ; `clearAuthToken()` sur 401 et expiry ; nettoyage `access_token` + `refresh_token`
-- Content scripts : `cleanText()` migré de `innerHTML` vers `DOMParser` (safe) ; `chatUrl` validé contre origines de confiance ; origin check sur handler `sumear-close` ; `embedUrl` validé dans service-worker
-- Popup : `innerHTML` dynamique remplacé par `createElement` + `textContent` (anti-XSS)
+- Content scripts : `cleanText()` migré de `innerHTML` vers `DOMParser` (safe) ; `chatUrl` validé contre origines de confiance ; origin check sur handler `sumear-close` ; `embedUrl` validé dans service-worker ; `extractEbay()` wrap chaque champ dans son propre try/catch, tous les textContent clampés par `cleanText()` + `clamp(max)` avant envoi
+- Service worker : handler `fetchEbayDescription` avec whitelist hôte stricte (`itm.ebaydesc.com`, `vi.vipr.ebaydesc.com`), HTTPS obligatoire, timeout 5 s, cap 50 KB streaming, `credentials: 'omit'`. Pas d'`externally_connectable` dans le manifest → surface d'attaque limitée aux scripts internes de l'extension
+- Popup : `innerHTML` dynamique remplacé par `createElement` + `textContent` (anti-XSS) ; `renderRatingOrSellerBadge()` utilise `textContent` + `classList.add` uniquement (jamais d'innerHTML pour les données vendeur tierces)
 
 ### Variables d'environnement requises
 ```env
@@ -592,7 +713,10 @@ Le projet utilise un mix de Tailwind CSS et d'inline styles (via `style={{}}`). 
 | 4. Dashboard & UX | Projets, clips, design system, thèmes, wordmark | ✅ DONE |
 | 5. Quotas & Monétisation | Quotas, Stripe, plans Free/Complete | ✅ cœur fait — UI quota retirée du dashboard (décision design) |
 | 6. Marketing | Landing page, pricing page, pages légales | ✅ Landing redesignée (Hero/Features/Pricing/FAQ) ; pages légales FR+EN (CGU renforcées : RGPD, prompt injection, partage compte, scraping) |
-| 7. Sécurité & Monitoring | Audit sécurité, prompt caching, rate limiting, token logging | ✅ Audit app (3 tiers) + extension (3 axes) + prompt caching multi-turn + rate limiting (5 routes) + token logging (`ai_logs` + monthly aggregates) |
+| 7. Sécurité & Monitoring | Audit sécurité, prompt caching, rate limiting, token logging | ✅ Audit app (3 tiers) + extension (3 axes) + prompt caching multi-turn + rate limiting (5 routes) + token logging (`ai_logs` + monthly aggregates) + prompt injection defense (`sanitize.ts`, `security_logs`) |
+| 7b. UX & Qualité | Page login i18n, déduplication clips, compare list popup | ✅ Login page `[lang]/login` (two-column, i18n, fix boucle redirect) ; `normalizeProductUrl` + clips UPDATE/201 + feedback popup ; section "Analyser des produits" extension (compare list max 5, `openSplitView` multi-clips) |
+| 7c. Enrichissement eBay | Extraction seller/feedback/auction, proxy iframe description, contexte LLM | ✅ `extract-ebay.ts` + `types-ebay.ts` extension ; `validate-ebay.ts` + `format-ebay-context.ts` app ; migration `clips_ebay_data_migration.sql` (JSONB + TTL) ; seller badge popup ; addendum system prompt `EBAY_SYSTEM_PROMPT_ADDENDUM` |
+| 7d. UX Chat | Scope rules relâchées, auto-scroll intelligent, welcome state, suggestion chips | ✅ v2.4 — inférence contextuelle autorisée sur questions vagues, pause auto-scroll quand l'utilisateur remonte, chips cachées après premier message, welcome state dans les 3 layouts |
 | 8. Launch | Chrome Web Store, onboarding, soumission | ⬜ TODO |
 | Post-launch | OpenAI (second provider LLM) | 🔜 LATER |
 

@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   if (!quota.is_allowed) {
     return NextResponse.json(
       {
-        error: 'Quota de projets atteint (plan Free : 2 projets max). Passe au Complete pour des projets illimités.',
+        error: 'Project quota reached (Free plan: 2 projects max). Upgrade to Complete for unlimited projects.',
         code: 'QUOTA_EXCEEDED',
         projects_count: quota.projects_count,
         projects_limit: quota.projects_limit,

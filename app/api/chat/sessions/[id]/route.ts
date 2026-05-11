@@ -37,7 +37,7 @@ export async function GET(
 
     const { data: session, error: sessionError } = await supabase
       .from('chat_sessions')
-      .select('id, title, created_at, updated_at')
+      .select('id, title, session_type, web_search_enabled, created_at, updated_at')
       .eq('id', sessionId)
       .eq('user_id', user.id)
       .single()
@@ -85,6 +85,9 @@ export async function GET(
       session: {
         id: session.id,
         title: session.title,
+        session_type: (session as { session_type?: string | null }).session_type ?? 'clip_based',
+        web_search_enabled:
+          (session as { web_search_enabled?: boolean | null }).web_search_enabled ?? false,
         created_at: session.created_at,
         updated_at: session.updated_at,
       },
@@ -94,6 +97,62 @@ export async function GET(
     })
   } catch (err) {
     console.error('Unexpected error in GET /api/chat/sessions/[id]:', err)
+    return NextResponse.json(
+      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/chat/sessions/[id]
+ *
+ * Removes a chat session. RLS already restricts deletion to the owner;
+ * we add `.eq('user_id', user.id)` belt-and-suspenders.
+ *
+ * `chat_messages` and `chat_session_clips` are removed automatically by
+ * the FK ON DELETE CASCADE declared in `database/chat_history.sql`.
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: sessionId } = await params
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'unauthorized', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
+    }
+
+    const { error, count } = await supabase
+      .from('chat_sessions')
+      .delete({ count: 'exact' })
+      .eq('id', sessionId)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Chat session delete error:', error)
+      return NextResponse.json(
+        { error: 'Failed to delete session', code: 'DB_ERROR' },
+        { status: 500 }
+      )
+    }
+    if (count === 0) {
+      // Either the session doesn't exist or doesn't belong to the user.
+      // Return 404 in both cases (don't leak existence).
+      return NextResponse.json(
+        { error: 'Session not found', code: 'NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Unexpected error in DELETE /api/chat/sessions/[id]:', err)
     return NextResponse.json(
       { error: 'Internal server error', code: 'INTERNAL_ERROR' },
       { status: 500 }

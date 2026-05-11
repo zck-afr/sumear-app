@@ -10,7 +10,7 @@ const ARC_LENGTH = 97
 function nextResetLabel(): string {
   const now  = new Date()
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-  return `1 ${next.toLocaleDateString('fr-FR', { month: 'long' })}`
+  return next.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 }
 
 interface Props {
@@ -31,7 +31,7 @@ export function AiQuotaCard({ aiUsed, aiLimit, billingPlan }: Props) {
     return () => clearTimeout(id)
   }, [targetOffset])
 
-  const planName = billingPlan === 'free' ? 'Gratuit' : 'Complet'
+  const planName = billingPlan === 'free' ? 'Free' : 'Complete'
   const resetLabel = nextResetLabel()
 
   return (
@@ -55,7 +55,7 @@ export function AiQuotaCard({ aiUsed, aiLimit, billingPlan }: Props) {
         margin: 0, alignSelf: 'flex-start',
         fontFamily: jakarta,
       }}>
-        Messages envoyés
+        Messages sent
       </p>
 
       {/* Arc + number */}
@@ -101,8 +101,8 @@ export function AiQuotaCard({ aiUsed, aiLimit, billingPlan }: Props) {
         fontFamily: jakarta,
       }}>
         {unlimited
-          ? `Plan ${planName} · illimité`
-          : `sur ${aiLimit} messages · Plan ${planName}`}
+          ? `${planName} plan · unlimited`
+          : `of ${aiLimit} messages · ${planName} plan`}
       </p>
 
       {/* Reset date */}
@@ -112,7 +112,7 @@ export function AiQuotaCard({ aiUsed, aiLimit, billingPlan }: Props) {
           textAlign: 'center', margin: '2px 0 0',
           fontFamily: jakarta,
         }}>
-          Réinitialisation le {resetLabel}
+          Resets on {resetLabel}
         </p>
       )}
 
@@ -127,7 +127,7 @@ export function AiQuotaCard({ aiUsed, aiLimit, billingPlan }: Props) {
           }}
           className="hover:underline"
         >
-          Passer au plan Complet →
+          Upgrade to Complete →
         </Link>
       )}
     </div>

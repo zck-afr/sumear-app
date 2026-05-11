@@ -34,7 +34,7 @@ export function RecentClipsGrid({ clips }: { clips: Clip[] }) {
         {clips.map((clip) => {
           const formattedPrice =
             clip.price != null
-              ? new Intl.NumberFormat('fr-FR', {
+              ? new Intl.NumberFormat('en-US', {
                   style: 'currency',
                   currency: clip.currency || 'EUR',
                 }).format(clip.price)
@@ -123,7 +123,7 @@ export function RecentClipsGrid({ clips }: { clips: Clip[] }) {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3" style={{ marginTop: 14 }}>
           <span style={{ fontSize: 13, color: 'var(--ds-text-secondary)' }}>
-            {selectedIds.size} produit{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            {selectedIds.size} product{selectedIds.size > 1 ? 's' : ''} selected
           </span>
           <Link
             href={`/chat?clips=${clipsParam}`}
@@ -138,7 +138,7 @@ export function RecentClipsGrid({ clips }: { clips: Clip[] }) {
               textDecoration: 'none',
             }}
           >
-            Ouvrir le chat
+            Open chat
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>

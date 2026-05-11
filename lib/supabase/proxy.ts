@@ -1,5 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { locales } from '@/lib/i18n/config'
+
+// Login lives at /${lang}/login (canonical) but the bare /login is also
+// accepted (proxy.ts redirects it to /${locale}/login). Treat all of these
+// as "the login page" to avoid the unauthenticated-redirect-loop.
+function isLoginPath(path: string): boolean {
+  if (path === '/login' || path.startsWith('/login/')) return true
+  return locales.some(
+    (l) => path === `/${l}/login` || path.startsWith(`/${l}/login/`)
+  )
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -40,15 +51,15 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Authenticated user on /login → redirect to dashboard
-  if (user && path.startsWith('/login')) {
+  // Authenticated user on a login page → bounce to dashboard
+  if (user && isLoginPath(path)) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
   }
 
-  // Unauthenticated user on protected route → redirect to login
-  if (!user && !path.startsWith('/login')) {
+  // Unauthenticated user on protected route → bounce to login
+  if (!user && !isLoginPath(path)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

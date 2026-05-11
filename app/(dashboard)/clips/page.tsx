@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '@/components/theme-provider'
+import { useConfirm } from '@/lib/hooks/use-confirm'
 
 interface Clip {
   id: string
@@ -19,7 +20,7 @@ interface Clip {
   created_at: string
 }
 
-const fraunces = 'var(--font-fraunces), Georgia, serif'
+const fraunces = 'var(--font-fraunces), serif'
 const playfair = 'var(--font-playfair-display), Georgia, serif'
 const jakarta = 'var(--font-plus-jakarta-sans), sans-serif'
 
@@ -30,6 +31,7 @@ export default function ClipsPage() {
   const [error, setError] = useState<string | null>(null)
   const [filterDomain, setFilterDomain] = useState<string | null>(null)
   const router = useRouter()
+  const { confirmModal, showConfirm } = useConfirm()
 
   useEffect(() => {
     async function fetchClips() {
@@ -43,7 +45,7 @@ export default function ClipsPage() {
         .order('created_at', { ascending: false })
         .limit(100)
       if (data) setClips(data)
-      if (error) setError('Erreur lors du chargement.')
+      if (error) setError('Loading error.')
       setLoading(false)
     }
     fetchClips()
@@ -68,28 +70,35 @@ export default function ClipsPage() {
     return clips.filter(c => c.source_domain === filterDomain)
   }, [clips, filterDomain])
 
-  async function handleDeleteClip(clipId: string, e: React.MouseEvent) {
+  function handleDeleteClip(clipId: string, e: React.MouseEvent) {
     e.stopPropagation()
-    if (!window.confirm('Supprimer ce produit de vos clips ?')) return
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { error: delErr } = await supabase
-      .from('clips')
-      .delete()
-      .eq('id', clipId)
-      .eq('user_id', user.id)
-    if (delErr) {
-      setError('Impossible de supprimer ce clip.')
-      return
-    }
-    setClips(prev => prev.filter(c => c.id !== clipId))
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.delete(clipId)
-      return next
+    showConfirm({
+      title: 'Remove product',
+      message: 'This product will be removed from your list.',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+      onConfirm: async () => {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { error: delErr } = await supabase
+          .from('clips')
+          .delete()
+          .eq('id', clipId)
+          .eq('user_id', user.id)
+        if (delErr) {
+          setError('Unable to delete this clip.')
+          return
+        }
+        setClips(prev => prev.filter(c => c.id !== clipId))
+        setSelected(prev => {
+          const next = new Set(prev)
+          next.delete(clipId)
+          return next
+        })
+        setError(null)
+      },
     })
-    setError(null)
   }
 
   function openChatWithClips(ids: string[]) {
@@ -112,6 +121,8 @@ export default function ClipsPage() {
   }
 
   return (
+    <>
+    {confirmModal}
     <div
       style={{
         display: 'flex',
@@ -126,7 +137,8 @@ export default function ClipsPage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 6,
+          marginBottom: 28,
+          gap: 16,
         }}
       >
         <div>
@@ -135,39 +147,64 @@ export default function ClipsPage() {
               display: 'block',
               fontFamily: fraunces,
               fontWeight: 300,
-              fontStyle: 'italic',
-              fontSize: 34,
+              fontStyle: 'normal',
+              fontSize: 36,
               color: 'var(--text-primary)',
               letterSpacing: '-0.4px',
               lineHeight: 1.1,
             }}
           >
-            Mes produits,
+            Products
           </span>
-          <span
-            style={{
-              display: 'block',
-              fontFamily: fraunces,
-              fontWeight: 300,
-              fontStyle: 'normal',
-              fontSize: 20,
-              color: 'var(--accent)',
-              marginTop: 2,
-            }}
-          >
-            vos clips sauvegardés 📎
-          </span>
-          <p
-            style={{
-              marginTop: 6,
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              fontFamily: jakarta,
-            }}
-          >
-            Analysez vos produits sauvegardés.
-          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => openChatWithClips(Array.from(selected))}
+          disabled={selected.size === 0}
+          title={selected.size === 0 ? 'Select at least one product to start analyzing' : `Analyze ${selected.size} selected product${selected.size !== 1 ? 's' : ''}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: selected.size === 0 ? 'var(--bg-secondary)' : 'var(--accent)',
+            color: selected.size === 0 ? 'var(--text-muted)' : '#fff',
+            border: selected.size === 0 ? '0.5px solid var(--border-md)' : 'none',
+            borderRadius: 20,
+            padding: '9px 18px',
+            fontSize: 12,
+            fontWeight: 500,
+            fontFamily: jakarta,
+            cursor: selected.size === 0 ? 'not-allowed' : 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            opacity: selected.size === 0 ? 0.6 : 1,
+            transition: 'background .15s, color .15s, opacity .15s',
+          }}
+        >
+          Open chat
+          {selected.size > 0 && (
+            <span
+              style={{
+                background: 'rgba(255,255,255,.22)',
+                borderRadius: 10,
+                padding: '1px 6px',
+                fontSize: 10,
+                fontWeight: 500,
+              }}
+            >
+              {selected.size}
+            </span>
+          )}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path
+              d="M2.5 6h7M6.5 3l3 3-3 3"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </div>
 
       {error && (
@@ -203,7 +240,7 @@ export default function ClipsPage() {
             }}
           >
             <FilterPill
-              label="Tous"
+              label="All"
               active={filterDomain === null}
               onClick={() => setFilterDomain(null)}
             />
@@ -231,7 +268,7 @@ export default function ClipsPage() {
                 fontFamily: jakarta,
               }}
             >
-              {filteredClips.length} produit{filteredClips.length !== 1 ? 's' : ''}
+              {filteredClips.length} product{filteredClips.length !== 1 ? 's' : ''}
             </span>
           </div>
 
@@ -240,7 +277,7 @@ export default function ClipsPage() {
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-              gap: 12,
+              gap: 28,
               marginTop: 20,
               flex: 1,
               alignContent: 'start',
@@ -269,6 +306,7 @@ export default function ClipsPage() {
         </>
       )}
     </div>
+    </>
   )
 }
 
@@ -306,7 +344,7 @@ function FilterPill({
 function formatClipDayMonth(dateStr: string) {
   const d = new Date(dateStr)
   const day = d.getDate().toString().padStart(2, '0')
-  const month = d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
+  const month = d.toLocaleDateString('en-US', { month: 'short' }).replace('.', '')
   return `${day} ${month}`
 }
 
@@ -350,7 +388,7 @@ function ProductCard({
 
   const price =
     clip.price != null
-      ? new Intl.NumberFormat('fr-FR', {
+      ? new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: clip.currency || 'EUR',
         }).format(clip.price)
@@ -384,7 +422,7 @@ function ProductCard({
     >
       <button
         type="button"
-        title="Supprimer"
+        title="Delete"
         onClick={onDelete}
         className="opacity-0 group-hover/card:opacity-100"
         style={{
@@ -546,7 +584,7 @@ function ProductCard({
               border: 'none',
             }}
           >
-            Analyser
+            Analyze
           </button>
           <button
             type="button"
@@ -571,7 +609,7 @@ function ProductCard({
               opacity: compareDisabled && !isInCompareList ? 0.4 : 1,
             }}
           >
-            {isInCompareList ? '✓ Ajouté' : '+ Sélectionner'}
+            {isInCompareList ? '✓ Added' : '+ Select'}
           </button>
         </div>
 
@@ -616,7 +654,7 @@ function CompareBar({
   onAskAi: () => void
 }) {
   const { theme } = useTheme()
-  // En clair, --text-primary est le brun foncé ; en sombre il devient clair — garder une barre foncée.
+  // Light mode: --text-primary is dark brown; dark mode: it becomes light — keep the bar dark.
   const barBg =
     theme === 'dark' ? 'var(--bg-sidebar)' : 'var(--text-primary)'
 
@@ -641,7 +679,7 @@ function CompareBar({
     >
       <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,.7)' }}>
         <span style={{ color: '#fff', fontWeight: 500 }}>{count}</span>
-        {' '}produit{count !== 1 ? 's' : ''} sélectionné{count !== 1 ? 's' : ''}
+        {' '}product{count !== 1 ? 's' : ''} selected
       </p>
       <div style={{ display: 'flex', flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         <button
@@ -658,7 +696,7 @@ function CompareBar({
             fontFamily: jakarta,
           }}
         >
-          Effacer
+          Clear
         </button>
         <button
           type="button"
@@ -675,7 +713,7 @@ function CompareBar({
             fontWeight: 500,
           }}
         >
-          Ouvrir le chat →
+          Open chat →
         </button>
       </div>
     </div>
@@ -690,33 +728,34 @@ function EmptyState() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 14,
-        padding: '60px 0',
         textAlign: 'center',
-        fontFamily: jakarta,
+        marginTop: 260,
+        gap: 12,
       }}
     >
-      <span style={{ fontSize: 40, lineHeight: 1 }}>📎</span>
-      <p
+      <span
         style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 500,
+          fontFamily: fraunces,
+          fontSize: 22,
+          fontWeight: 300,
+          fontStyle: 'normal',
           color: 'var(--text-primary)',
+          letterSpacing: '-.2px',
         }}
       >
-        Aucun produit sauvegardé.
-      </p>
+        No saved products.
+      </span>
       <p
         style={{
-          margin: 0,
-          fontSize: 12,
+          margin: '0 auto',
+          fontSize: 13,
           color: 'var(--text-muted)',
-          maxWidth: 340,
-          lineHeight: 1.45,
+          lineHeight: 1.6,
+          maxWidth: 280,
+          fontFamily: jakarta,
         }}
       >
-        Naviguez sur une page produit et utilisez l&apos;extension sumear pour sauvegarder vos premiers produits.
+        Save products from any shop with the Sumear extension, then organise and compare them here.
       </p>
     </div>
   )

@@ -3,6 +3,8 @@ import { createClient, createClientWithJWT } from '@/lib/supabase/server'
 import type { User } from '@supabase/supabase-js'
 import { checkQuota } from '@/lib/utils/quota'
 import { checkRateLimit, rateLimitResponse } from '@/lib/utils/rate-limit'
+import { normalizeProductUrl, extractDomain } from '@/lib/utils/url'
+import { validateEbayData } from '@/lib/utils/validate-ebay'
 
 /**
  * POST /api/clips
@@ -87,6 +89,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'raw_markdown too long', code: 'INVALID_INPUT' }, { status: 400 })
     }
 
+    // ── Validate optional ebay_data payload ──
+    // - If present and malformed (not an object, missing/invalid listing_type),
+    //   reject the whole request with 400.
+    // - If `null`/absent, continue normally.
+    // - Otherwise clamp + clean and use the sanitized version below.
+    let ebayDataClean: ReturnType<typeof validateEbayData> | null = null
+    if (body.ebay_data != null) {
+      if (typeof body.ebay_data !== 'object' || Array.isArray(body.ebay_data)) {
+        return NextResponse.json(
+          { error: 'ebay_data must be an object', code: 'INVALID_INPUT' },
+          { status: 400 }
+        )
+      }
+      ebayDataClean = validateEbayData(body.ebay_data)
+      if (ebayDataClean == null) {
+        return NextResponse.json(
+          { error: 'ebay_data payload is invalid', code: 'INVALID_EBAY_DATA' },
+          { status: 400 }
+        )
+      }
+    }
+
     if (body.extracted_specs && typeof body.extracted_specs === 'object') {
       const entries = Object.entries(body.extracted_specs)
       const sanitized: Record<string, string> = {}
@@ -101,11 +125,12 @@ export async function POST(request: Request) {
     }
 
     // ── Validate project_id ownership ──
-    if (body.project_id) {
+    const projectId: string | null = body.project_id || null
+    if (projectId) {
       const { data: proj } = await supabase
         .from('projects')
         .select('id')
-        .eq('id', body.project_id)
+        .eq('id', projectId)
         .eq('user_id', user.id)
         .maybeSingle()
       if (!proj) {
@@ -116,12 +141,94 @@ export async function POST(request: Request) {
       }
     }
 
+    // ── Build the row payload (shared between dedup-update and insert) ──
+    const sourceDomain: string =
+      body.source_domain || extractDomain(body.source_url)
+    const clipFields: Record<string, unknown> = {
+      product_name: body.product_name,
+      brand: body.brand ?? null,
+      image_url: body.image_url ?? null,
+      description: body.description ?? null,
+      price: body.price ?? null,
+      currency: body.currency ?? 'EUR',
+      rating: body.rating ?? null,
+      review_count: body.review_count ?? null,
+      raw_jsonld: body.raw_jsonld ?? null,
+      raw_markdown: body.raw_markdown ?? null,
+      extraction_method: body.extraction_method ?? 'markdown',
+      extracted_specs: body.extracted_specs ?? {},
+      extracted_reviews: body.extracted_reviews ?? [],
+    }
+
+    // Only set ebay_data + refreshed_at when the extension sent a valid payload.
+    // A missing ebay_data on an update MUST NOT wipe existing data (soft migration).
+    if (ebayDataClean) {
+      clipFields.ebay_data = ebayDataClean
+      clipFields.ebay_data_refreshed_at = new Date().toISOString()
+    }
+
+    // ── Dedup check (BEFORE quota): same user + same project + same
+    //     normalized URL ⇒ UPDATE existing clip, do not consume quota ──
+    const normalizedNew = normalizeProductUrl(body.source_url)
+    if (normalizedNew && sourceDomain) {
+      let candidatesQuery = supabase
+        .from('clips')
+        .select('id, source_url, created_at')
+        .eq('user_id', user.id)
+        .eq('source_domain', sourceDomain)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      candidatesQuery = projectId
+        ? candidatesQuery.eq('project_id', projectId)
+        : candidatesQuery.is('project_id', null)
+
+      const { data: candidates } = await candidatesQuery
+      const existing = (candidates ?? []).find(
+        (c) => normalizeProductUrl(c.source_url) === normalizedNew
+      )
+
+      if (existing) {
+        const { data: updated, error: updateError } = await supabase
+          .from('clips')
+          .update({ ...clipFields, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+          .eq('user_id', user.id) // RLS belt-and-suspenders
+          .select('id, product_name, source_domain, price, currency, created_at')
+          .single()
+
+        if (updateError || !updated) {
+          console.error('Clip update error:', updateError)
+          return NextResponse.json(
+            { error: 'Failed to update clip', code: 'UPDATE_FAILED' },
+            { status: 500 }
+          )
+        }
+
+        // Read current quota for response (no increment).
+        const quotaSnapshot = await checkQuota(supabase, user.id, 'clips')
+
+        return NextResponse.json(
+          {
+            clip: updated,
+            clip_id: updated.id,
+            quota: {
+              clips_count: quotaSnapshot.clips_count,
+              clips_limit: quotaSnapshot.clips_limit,
+            },
+            code: 'CLIP_UPDATED',
+            message: 'Product updated',
+          },
+          { status: 200 }
+        )
+      }
+    }
+
     // ── Quota check ──
     const quota = await checkQuota(supabase, user.id, 'clips')
     if (!quota.is_allowed) {
       return NextResponse.json(
         {
-          error: 'Quota de clips atteint (plan Free : 8 clips max). Passe au Complete pour des clips illimités.',
+          error: 'Clip quota reached (Free plan: 8 clips max). Upgrade to Complete for unlimited clips.',
           code: 'QUOTA_EXCEEDED',
           clips_count: quota.clips_count,
           clips_limit: quota.clips_limit,
@@ -136,21 +243,10 @@ export async function POST(request: Request) {
       .from('clips')
       .insert({
         user_id: user.id,
-        project_id: body.project_id || null,
+        project_id: projectId,
         source_url: body.source_url,
-        source_domain: body.source_domain || extractDomain(body.source_url),
-        product_name: body.product_name,
-        brand: body.brand ?? null,
-        image_url: body.image_url ?? null,
-        price: body.price ?? null,
-        currency: body.currency ?? 'EUR',
-        rating: body.rating ?? null,
-        review_count: body.review_count ?? null,
-        raw_jsonld: body.raw_jsonld ?? null,
-        raw_markdown: body.raw_markdown ?? null,
-        extraction_method: body.extraction_method ?? 'markdown',
-        extracted_specs: body.extracted_specs ?? {},
-        extracted_reviews: body.extracted_reviews ?? [],
+        source_domain: sourceDomain,
+        ...clipFields,
       })
       .select('id, product_name, source_domain, price, currency, created_at')
       .single()
@@ -164,7 +260,12 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { clip, quota: { clips_count: quota.clips_count + 1, clips_limit: quota.clips_limit } },
+      {
+        clip,
+        clip_id: clip.id,
+        quota: { clips_count: quota.clips_count + 1, clips_limit: quota.clips_limit },
+        code: 'CLIP_CREATED',
+      },
       { status: 201 }
     )
   } catch (err) {
@@ -238,13 +339,5 @@ export async function GET(request: Request) {
       { error: 'Internal server error', code: 'INTERNAL_ERROR' },
       { status: 500 }
     )
-  }
-}
-
-function extractDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return ''
   }
 }
